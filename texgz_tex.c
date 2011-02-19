@@ -127,7 +127,7 @@ static texgz_tex_t* texgz_tex_4444to8888(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -167,7 +167,7 @@ static texgz_tex_t* texgz_tex_565to8888(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -209,7 +209,7 @@ static texgz_tex_t* texgz_tex_5551to8888(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -251,7 +251,7 @@ static texgz_tex_t* texgz_tex_888to8888(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -288,7 +288,7 @@ static texgz_tex_t* texgz_tex_8888to4444(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_SHORT_4_4_4_4, TEXGZ_RGBA,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -328,7 +328,7 @@ static texgz_tex_t* texgz_tex_8888to565(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_SHORT_5_6_5, TEXGZ_RGB,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -368,7 +368,7 @@ static texgz_tex_t* texgz_tex_8888to5551(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_SHORT_5_5_5_1, TEXGZ_RGBA,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -409,7 +409,7 @@ static texgz_tex_t* texgz_tex_8888to888(texgz_tex_t* self)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -466,7 +466,7 @@ static texgz_tex_t* texgz_tex_8888format(texgz_tex_t* self, int format)
 	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
                                      self->stride, self->vstride,
                                      self->type, format,
-                                     NULL, 0);
+                                     NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -516,12 +516,11 @@ static int texgz_readint(const unsigned char* buffer, int offset)
 texgz_tex_t* texgz_tex_new(int width, int height,
                            int stride, int vstride,
                            int type, int format,
-                           unsigned char* pixels,
-                           int flip_vertical)
+                           unsigned char* pixels)
 {
 	// pixels can be NULL
-	LOGD("debug width=%i, height=%i, stride=%i, vstride=%i, type=0x%X, format=0x%X, pixels=%p, flip_vertical=%i",
-	     width, height, stride, vstride, type, format, pixels, flip_vertical);
+	LOGD("debug width=%i, height=%i, stride=%i, vstride=%i, type=0x%X, format=0x%X, pixels=%p",
+	     width, height, stride, vstride, type, format, pixels);
 
 	if((stride <= 0) || (width > stride))
 	{
@@ -583,20 +582,8 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 
 	if(pixels == NULL)
 		memset(self->pixels, 0, size);
-	else if(flip_vertical == 0)
-		memcpy(self->pixels, pixels, size);
 	else
-	{
-        // vertical flip
-		int y;
-		int bpp = texgz_tex_bpp(self);
-		for(y = 0; y < vstride; ++y)
-		{
-			unsigned char* src = &pixels[y*bpp*stride];
-			unsigned char* dst = &self->pixels[(vstride - 1 - y)*bpp*stride];
-			memcpy(dst, src, bpp*stride);
-		}
-	}
+		memcpy(self->pixels, pixels, size);
 
 	// success
 	return self;
@@ -630,7 +617,7 @@ texgz_tex_t* texgz_tex_copy(texgz_tex_t* self)
 	return texgz_tex_new(self->width, self->height,
                          self->stride, self->vstride,
                          self->type, self->format,
-                         self->pixels, 0);
+                         self->pixels);
 }
 
 texgz_tex_t* texgz_tex_import(const char* filename)
@@ -677,7 +664,7 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 		goto fail_magic;
 	}
 
-	texgz_tex_t* self = texgz_tex_new(width, height, stride, vstride, type, format, NULL, 0);
+	texgz_tex_t* self = texgz_tex_new(width, height, stride, vstride, type, format, NULL);
 	if(self == NULL)
 		goto fail_tex;
 
@@ -883,6 +870,50 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 	}
 
 	// success
+	return tex;
+}
+
+int texgz_tex_flipvertical(texgz_tex_t* self)
+{
+	assert(self);
+	LOGD("debug");
+
+	texgz_tex_t* tex = texgz_tex_flipverticalcopy(self);
+	if(tex == NULL)
+		return 0;
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self)
+{
+	assert(self);
+	LOGD("debug");
+
+	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
+	                                 self->stride, self->vstride,
+	                                 self->type, self->format,
+	                                 NULL);
+	if(tex == NULL)
+		return NULL;
+
+	// vertical flip
+	int y;
+	int bpp     = texgz_tex_bpp(self);
+	int stride  = self->stride;
+	int vstride = self->vstride;
+	for(y = 0; y < vstride; ++y)
+	{
+		unsigned char* src = &self->pixels[y*bpp*stride];
+		unsigned char* dst = &tex->pixels[(vstride - 1 - y)*bpp*stride];
+		memcpy(dst, src, bpp*stride);
+	}
 	return tex;
 }
 

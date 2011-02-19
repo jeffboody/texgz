@@ -23,20 +23,17 @@
 
 [example using texgz to save a screenshot in OpenGL ES]
 
-	GLint format;
-	GLint type;
-	unsigned char* pixels = (unsigned char*) malloc(4**width*height);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, (void*) pixels);
 	glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT, &format);
 	glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_TYPE, &type);
 	texgz_tex_t* tex = texgz_tex_new(width, height,
-                                     width, height,
-                                     type, format,
-                                     pixels, 1);
+	                                 width, height,
+	                                 type, format,
+	                                 NULL);
+	glReadPixels(0, 0, width, height, format, type, (void*) tex->pixels);
+	texgz_tex_flipvertical(tex);
 	texgz_tex_export(tex, "sample.texgz");
 	texgz_tex_delete(&tex);
-	free(pixels);
 
 [resources]
 

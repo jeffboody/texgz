@@ -247,7 +247,7 @@ static int texgz_export(const gchar*    filename,
 	texgz_tex_t* tex = texgz_tex_new(drawable->width, drawable->height,
 	                                 drawable->width, drawable->height,
 	                                 TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-	                                 NULL, 0);
+	                                 NULL);
 	if(tex == NULL)
 		goto fail_texgz_tex_new;
 

@@ -52,14 +52,15 @@ typedef struct
 texgz_tex_t* texgz_tex_new(int width, int height,
                            int stride, int vstride,
                            int type, int format,
-                           unsigned char* pixels,
-                           int flip_vertical);
+                           unsigned char* pixels);
 void         texgz_tex_delete(texgz_tex_t** _self);
 texgz_tex_t* texgz_tex_copy(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_import(const char* filename);
 int          texgz_tex_export(texgz_tex_t* self, const char* filename);
 int          texgz_tex_convert(texgz_tex_t* self, int type, int format);
 texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format);
+int          texgz_tex_flipvertical(texgz_tex_t* self);
+texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self);
 int          texgz_tex_bpp(texgz_tex_t* self);
 int          texgz_tex_size(texgz_tex_t* self);
 
