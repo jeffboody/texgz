@@ -302,7 +302,7 @@ static void query(void)
 	LOGD("debug");
 
 	gimp_install_procedure("texgz-import",
-	                       "http://www.jeffboody.net/texgz.php",
+	                       "https://github.com/jeffboody/texgz",
 	                       "Loads texgz images",
 	                       "Jeff Boody",
 	                       "Copyright (c) 2011 Jeff Boody",
@@ -316,7 +316,7 @@ static void query(void)
 	                       s_return_vals);
 
 	gimp_install_procedure("texgz-export",
-	                       "http://www.jeffboody.net/texgz.php",
+	                       "https://github.com/jeffboody/texgz",
 	                       "Saves texgz images",
 	                       "Jeff Boody",
 	                       "Copyright (c) 2011 Jeff Boody",
