@@ -509,6 +509,15 @@ static int texgz_readint(const unsigned char* buffer, int offset)
 	return o;
 }
 
+static int texgz_swapendian(int i)
+{
+	int o = (i << 24) & 0xFF000000;
+	o = o | ((i << 8) & 0x00FF0000);
+	o = o | ((i >> 8) & 0x0000FF00);
+	o = o | ((i >> 24) & 0x000000FF);
+	return o;
+}
+
 /*
  * public
  */
@@ -657,6 +666,15 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 		height  = texgz_readint(buffer, 16);
 		stride  = texgz_readint(buffer, 20);
 		vstride = texgz_readint(buffer, 24);
+	}
+	else if(magic == 0xD9000B00)
+	{
+		type    = texgz_swapendian(texgz_readint(buffer, 4));
+		format  = texgz_swapendian(texgz_readint(buffer, 8));
+		width   = texgz_swapendian(texgz_readint(buffer, 12));
+		height  = texgz_swapendian(texgz_readint(buffer, 16));
+		stride  = texgz_swapendian(texgz_readint(buffer, 20));
+		vstride = texgz_swapendian(texgz_readint(buffer, 24));
 	}
 	else
 	{
