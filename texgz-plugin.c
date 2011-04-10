@@ -149,6 +149,7 @@ static gint texgz_export_dialog(texgz_dialog_t* self)
 	                                            "RGBA-4444", 4444, NULL,
 	                                            "RGB-888",   888,  NULL,
 	                                            "RGBA-5551", 5551, NULL,
+	                                            "LUMINANCE", 8,    NULL,
 	                                            NULL);
 	if(frame == NULL)
 	{
@@ -225,6 +226,11 @@ static int texgz_export(const gchar*    filename,
 	{
 		type   = TEXGZ_UNSIGNED_SHORT_5_5_5_1;
 		format = TEXGZ_RGBA;
+	}
+	else if(dialog->param == 8)
+	{
+		type   = TEXGZ_UNSIGNED_BYTE;
+		format = TEXGZ_LUMINANCE;
 	}
 	else
 	{
