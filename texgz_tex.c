@@ -38,6 +38,10 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#ifdef ANDROID
+	#include <android/log.h>
+#endif
+
 static void texgz_log(const char* func, int line, const char* fmt, ...)
 {
 	assert(func);
@@ -54,7 +58,11 @@ static void texgz_log(const char* func, int line, const char* fmt, ...)
 		vsnprintf(&buf[size], 256 - size, fmt, argptr);
 		va_end(argptr);
 	}
-	printf("%s\n", buf);
+	#ifdef ANDROID
+		__android_log_print(ANDROID_LOG_INFO, "texgz", buf);
+	#else
+		printf("%s\n", buf);
+	#endif
 }
 
 #ifdef LOG_DEBUG
