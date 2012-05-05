@@ -143,13 +143,14 @@ static gint texgz_export_dialog(texgz_dialog_t* self)
 	                                            G_CALLBACK(gimp_radio_button_update),
 	                                            &self->param,
 	                                            8888,
-	                                            "RGBA-8888", 8888, NULL,
-	                                            "BGRA-8888", 8889, NULL,
-	                                            "RGB-565",   565,  NULL,
-	                                            "RGBA-4444", 4444, NULL,
-	                                            "RGB-888",   888,  NULL,
-	                                            "RGBA-5551", 5551, NULL,
-	                                            "LUMINANCE", 8,    NULL,
+	                                            "RGBA-8888",   8888, NULL,
+	                                            "BGRA-8888",   8889, NULL,
+	                                            "RGB-565",     565,  NULL,
+	                                            "RGBA-4444",   4444, NULL,
+	                                            "RGB-888",     888,  NULL,
+	                                            "RGBA-5551",   5551, NULL,
+	                                            "LUMINANCE",   8,    NULL,
+	                                            "LUMINANCE-F", 0xF,  NULL,
 	                                            NULL);
 	if(frame == NULL)
 	{
@@ -230,6 +231,11 @@ static int texgz_export(const gchar*    filename,
 	else if(dialog->param == 8)
 	{
 		type   = TEXGZ_UNSIGNED_BYTE;
+		format = TEXGZ_LUMINANCE;
+	}
+	else if(dialog->param == 0xF)
+	{
+		type   = TEXGZ_FLOAT;
 		format = TEXGZ_LUMINANCE;
 	}
 	else
