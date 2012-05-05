@@ -1103,6 +1103,108 @@ texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self)
 	return tex;
 }
 
+int texgz_tex_convolve(texgz_tex_t* self, float* mask, int msize, int rescale)
+{
+	assert(self);
+	assert(mask);
+	LOGD("debug msize=%i", msize);
+
+	texgz_tex_t* tex = texgz_tex_convolvecopy(self, mask, msize, rescale);
+	if(tex == NULL)
+		return 0;
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t* texgz_tex_convolvecopy(texgz_tex_t* self, float* mask, int msize, int rescale)
+{
+	assert(self);
+	assert(mask);
+	LOGD("debug msize=%i", msize);
+
+	if((self->type   == TEXGZ_FLOAT) &&
+	   (self->format == TEXGZ_LUMINANCE))
+	{
+		// only floats are supported for convolution
+	}
+	else
+	{
+		LOGE("invalid format=0x%X", self->format);
+		return NULL;
+	}
+
+	if((msize % 2) == 0)
+	{
+		// must be odd size
+		LOGE("invalid msize=%i", msize);
+		return NULL;
+	}
+
+	if((self->width < msize) ||
+	   (self->height < msize))
+	{
+		LOGE("invalid w=%i, h=%i, msize=%i", self->width, self->height, msize);
+		return NULL;
+	}
+
+	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
+	                                 self->stride, self->vstride,
+	                                 self->type, self->format,
+	                                 NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	// convolve the mask with the buffer
+	int x;
+	int y;
+	int i;
+	int j;
+	int w = self->width;
+	int h = self->height;
+	int clip1 = msize / 2;
+	int clip2 = clip1 + 1;
+	float* src = (float*) self->pixels;
+	float* dst = (float*) tex->pixels;
+	for(x = clip1; x < w - clip2; ++x)
+	{
+		for(y = clip1; y < h - clip2; ++y)
+		{
+			for(i = 0; i < msize; ++i)
+			{
+				for(j = 0; j < msize; ++j)
+				{
+					int row = y + i - clip1;
+					int col = x + j - clip1;
+					dst[w*y + x] += src[w*row + col] * mask[msize*i + j];
+				}
+			}
+		}
+	}
+
+	// make dst grayscale again when mask in range {-1, 1}
+	if(rescale)
+	{
+		for(x = clip1; x < w - clip2; ++x)
+		{
+			for(y = clip1; y < h - clip2; ++y)
+			{
+				int idx = w*y + x;
+				dst[idx] = (dst[idx] + 1.0f) * 0.5;
+			}
+		}
+	}
+
+	return tex;
+}
+
 int texgz_tex_bpp(texgz_tex_t* self)
 {
 	assert(self);
