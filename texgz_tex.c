@@ -968,6 +968,10 @@ int texgz_tex_convert(texgz_tex_t* self, int type, int format)
 	assert(self);
 	LOGD("debug type=0x%X, format=0x%X", type, format);
 
+	// already in requested format
+	if((type == self->type) && (format == self->format))
+		return 1;
+
 	texgz_tex_t* tex = texgz_tex_convertcopy(self, type, format);
 	if(tex == NULL)
 		return 0;
