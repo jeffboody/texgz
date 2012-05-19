@@ -827,7 +827,7 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 		stride  = texgz_readint(buffer, 20);
 		vstride = texgz_readint(buffer, 24);
 	}
-	else if(magic == 0xD9000B00)
+	else if(texgz_swapendian(magic) == 0x000B00D9)
 	{
 		type    = texgz_swapendian(texgz_readint(buffer, 4));
 		format  = texgz_swapendian(texgz_readint(buffer, 8));
