@@ -65,6 +65,9 @@ int          texgz_tex_flipvertical(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self);
 int          texgz_tex_convolve(texgz_tex_t* self, float* mask, int msize, int rescale);
 texgz_tex_t* texgz_tex_convolvecopy(texgz_tex_t* self, float* mask, int msize, int rescale);
+int          texgz_tex_computegray(texgz_tex_t* self, texgz_tex_t* gray);
+int          texgz_tex_computeedges3x3(texgz_tex_t* self, texgz_tex_t* sx, texgz_tex_t* sy);
+int          texgz_tex_computeedges5x5(texgz_tex_t* self, texgz_tex_t* sx, texgz_tex_t* sy);
 int          texgz_tex_bpp(texgz_tex_t* self);
 int          texgz_tex_size(texgz_tex_t* self);
 
