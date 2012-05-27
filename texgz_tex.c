@@ -29,6 +29,12 @@
 #include <math.h>
 
 /*
+ * private - optimizations
+ */
+
+#define TEXGZ_UNROLL_EDGE3X3
+
+/*
  * private - log api
  */
 
@@ -1287,8 +1293,6 @@ int texgz_tex_computeedges3x3(texgz_tex_t* self, texgz_tex_t* sx, texgz_tex_t* s
 	LOGD("debug");
 
 	// convolve the mask(s) with the buffer
-	int i;
-	int j;
 	int msize = 3;
 	float mask_x[] =
 	{
@@ -1318,19 +1322,55 @@ int texgz_tex_computeedges3x3(texgz_tex_t* self, texgz_tex_t* sx, texgz_tex_t* s
 			int ix = sx->stride*y + x;
 			int iy = sy->stride*y + x;
 
-			// TODO - unroll
-			px[ix] = 0.0f;
-			py[iy] = 0.0f;
-			for(i = 0; i < msize; ++i)
-			{
-				for(j = 0; j < msize; ++j)
+			#ifdef TEXGZ_UNROLL_EDGE3X3
+				int xm1 = x - 1;
+				int yp1 = y + 1;
+				int ym1 = y - 1;
+
+				// i=0, j=0
+				int idx = self->stride*ym1 + xm1;
+				px[ix]  = pg[idx] * mask_x[0];
+				py[iy]  = pg[idx] * mask_y[0];
+				// i=0, j=1
+				idx += 1;
+				py[iy] += pg[idx] * mask_y[1];
+				// i=0, j=2
+				idx += 1;
+				px[ix] += pg[idx] * mask_x[2];
+				py[iy] += pg[idx] * mask_y[2];
+				// i=1, j=0
+				idx = self->stride*y + xm1;
+				px[ix] += pg[idx] * mask_x[3];
+				// i=1, j=2
+				idx += 2;
+				px[ix] += pg[idx] * mask_x[5];
+				// i=2, j=0
+				idx = self->stride*yp1 + xm1;
+				px[ix] += pg[idx] * mask_x[6];
+				py[iy] += pg[idx] * mask_y[6];
+				// i=2, j=1
+				idx += 1;
+				py[iy] += pg[idx] * mask_y[7];
+				// i=2, j=2
+				idx += 1;
+				px[ix] += pg[idx] * mask_x[8];
+				py[iy] += pg[idx] * mask_y[8];
+			#else
+				px[ix] = 0.0f;
+				py[iy] = 0.0f;
+				int i;
+				int j;
+				for(i = 0; i < msize; ++i)
 				{
-					int row = y + i - clip1;
-					int col = x + j - clip1;
-					px[ix] += pg[self->stride*row + col] * mask_x[msize*i + j];
-					py[iy] += pg[self->stride*row + col] * mask_y[msize*i + j];
+					for(j = 0; j < msize; ++j)
+					{
+						int row = y + i - clip1;
+						int col = x + j - clip1;
+						px[ix] += pg[self->stride*row + col] * mask_x[msize*i + j];
+						py[iy] += pg[self->stride*row + col] * mask_y[msize*i + j];
+					}
 				}
-			}
+			#endif
 		}
 	}
 
