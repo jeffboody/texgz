@@ -1232,23 +1232,25 @@ int texgz_tex_computegray(texgz_tex_t* self, texgz_tex_t* gray)
 	int bpp = 4;   // RGBA8888/BGRA8888/FLOAT
 	for(y = 0; y < h; ++y)
 	{
+		unsigned char* src = &self->pixels[bpp*(y*self->stride)];
+		float*         dst = (float*) &gray->pixels[bpp*(y*gray->stride)];
 		float row_mean = 0.0f;
 		for(x = 0; x < w; ++x)
 		{
-			unsigned char* src = &self->pixels[bpp*(y*self->stride + x)];
-			float*         dst = (float*) &gray->pixels[bpp*(y*gray->stride + x)];
-			float          avg = ((float) src[0] + (float) src[1] + (float) src[2]) / 3.0f;
-			dst[0]             = avg / 255.0f;   // 0.0 to 1.0
-			row_mean          += dst[0];
+			float    avg = ((float) src[0] + (float) src[1] + (float) src[2]) / 3.0f;
+			dst[x]       = avg / 255.0f;   // 0.0 to 1.0
+			row_mean    += dst[x];
 
-			if(dst[0] < min)
+			if(dst[x] < min)
 			{
-				min = dst[0];
+				min = dst[x];
 			}
-			if(dst[0] > max)
+			if(dst[x] > max)
 			{
-				max = dst[0];
+				max = dst[x];
 			}
+
+			src += bpp;
 		}
 		mean += row_mean / (float) w;
 	}
