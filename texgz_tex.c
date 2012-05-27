@@ -1298,9 +1298,9 @@ int texgz_tex_computeedges3x3(texgz_tex_t* self, texgz_tex_t* sx, texgz_tex_t* s
 	};
 	float mask_y[] =
 	{
-		 1.0f / 8.0f,  2.0f / 8.0f,  1.0f / 8.0f,
-		        0.0f,         0.0f,         0.0f,
 		-1.0f / 8.0f, -2.0f / 8.0f, -1.0f / 8.0f,
+		        0.0f,         0.0f,         0.0f,
+		 1.0f / 8.0f,  2.0f / 8.0f,  1.0f / 8.0f,
 	};
 	int x;
 	int y;
