@@ -1,16 +1,24 @@
-[about]
+about
+=====
 
-	This package includes code to import/export the texgz image format
-	into Gimp (via a plugin) or other apps. The texgz format is specifically
-	designed to work well with OpenGL ES and uses zlib for lossless
-	compression. The following formats are supported by texgz:
+This package includes code to import/export the texgz image format
+into Gimp (via a plugin) or other apps. The texgz format is specifically
+designed to work well with OpenGL ES and uses zlib for lossless
+compression. The following formats are supported by texgz:
 
-	RGBA-8888, RGB-888, BGRA-8888, RGB-565, RGBA-4444, RGBA-5551
+* RGBA-8888
+* RGB-888
+* BGRA-8888
+* RGB-565
+* RGBA-4444
+* RGBA-5551
+* Luminance
+* Luminance-Float
 
-	For more information contact:
-	Jeff Boody - jeffboody@gmail.com
+Send questions or comments to Jeff Boody - jeffboody@gmail.com
 
-[example using texgz as a texture in OpenGL ES]
+example using texgz as a texture in OpenGL ES
+=============================================
 
 	// width/height may not equal stride/vstride for power-of-two textures
 	// and you may need to adjust texture coordinates accordingly
@@ -21,7 +29,8 @@
 	             tex->pixels);
 	texgz_tex_delete(tex);
 
-[example using texgz to save a screenshot in OpenGL ES]
+example using texgz to save a screenshot in OpenGL ES
+=====================================================
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glGetIntegerv(GL_IMPLEMENTATION_COLOR_READ_FORMAT, &format);
@@ -35,7 +44,8 @@
 	texgz_tex_export(tex, "sample.texgz");
 	texgz_tex_delete(&tex);
 
-[resources]
+resources
+=========
 
 	http://developer.gimp.org/api/2.0/libgimp/libgimp.html
 
@@ -46,14 +56,16 @@
 	# texgz plugin was based loosely on the pnm plugin
 	http://gimp.sourcearchive.com/documentation/2.6.5/file-pnm_8c-source.html
 
-[install the Gimp plugin]
+install the Gimp plugin
+=======================
 
 	# requires libgimp2.0-dev
 	sudo apt-get install libgimp2.0-dev
 
 	./build-plugin.sh
 
-[license]
+license
+=======
 
 	Copyright (c) 2011 Jeff Boody
 
