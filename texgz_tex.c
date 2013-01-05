@@ -680,6 +680,18 @@ static int texgz_swapendian(int i)
 	return o;
 }
 
+static int texgz_nextpot(int x)
+{
+	LOGD("debug x=%i", x);
+
+	int xp = 1;
+	while(x > xp)
+	{
+		xp *= 2;
+	}
+	return xp;
+}
+
 /*
  * public
  */
@@ -1170,6 +1182,68 @@ texgz_tex_t* texgz_tex_cropcopy(texgz_tex_t* self, int top, int left, int bottom
 		unsigned char* src = &self->pixels[src_y*bpp*self->stride];
 		unsigned char* dst = &tex->pixels[y*bpp*width];
 		memcpy(dst, src, bpp*width);
+	}
+	return tex;
+}
+
+int texgz_tex_pad(texgz_tex_t* self)
+{
+	assert(self);
+	LOGD("debug");
+
+	int pot_stride  = texgz_nextpot(self->stride);
+	int pot_vstride = texgz_nextpot(self->vstride);
+	if((pot_stride == self->stride) &&
+	   (pot_vstride == self->vstride))
+	{
+		// already power-of-two
+		return 1;
+	}
+
+	texgz_tex_t* tex = texgz_tex_padcopy(self);
+	if(tex == NULL)
+		return 0;
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self)
+{
+	assert(self);
+	LOGD("debug");
+
+	int pot_stride  = texgz_nextpot(self->stride);
+	int pot_vstride = texgz_nextpot(self->vstride);
+	if((pot_stride == self->stride) &&
+	   (pot_vstride == self->vstride))
+	{
+		// already power-of-two
+		return texgz_tex_copy(self);
+	}
+
+	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
+	                                 pot_stride, pot_vstride,
+	                                 self->type, self->format,
+	                                 NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	// blit
+	int y;
+	int bpp = texgz_tex_bpp(self);
+	for(y = 0; y < tex->height; ++y)
+	{
+		unsigned char* src = &self->pixels[y*bpp*self->stride];
+		unsigned char* dst = &tex->pixels[y*bpp*tex->stride];
+		memcpy(dst, src, bpp*tex->width);
 	}
 	return tex;
 }
