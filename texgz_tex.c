@@ -1113,6 +1113,67 @@ texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self)
 	return tex;
 }
 
+int texgz_tex_crop(texgz_tex_t* self, int top, int left, int bottom, int right)
+{
+	assert(self);
+	LOGD("debug top=%i, left=%i, bottom=%i, right=%i", top, left, bottom, right);
+
+	texgz_tex_t* tex = texgz_tex_cropcopy(self, top, left, bottom, right);
+	if(tex == NULL)
+		return 0;
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t* texgz_tex_cropcopy(texgz_tex_t* self, int top, int left, int bottom, int right)
+{
+	assert(self);
+	LOGD("debug top=%i, left=%i, bottom=%i, right=%i", top, left, bottom, right);
+
+	// crop rectangle is inclusive
+	// i.e. {0, 0, 0, 0} is a single pixel at {0, 0}
+	if((top < 0) ||
+	   (top > bottom) ||
+	   (left < 0) ||
+	   (left > right) ||
+	   (right >= self->width) ||
+	   (bottom >= self->height))
+	{
+		LOGE("invalid top=%i, left=%i, bottom=%i, right=%i", top, left, bottom, right);
+		return NULL;
+	}
+
+
+	int width  = right - left + 1;
+	int height = bottom - top + 1;
+	texgz_tex_t* tex = texgz_tex_new(width, height,
+	                                 width, height,
+	                                 self->type, self->format,
+	                                 NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	// blit
+	int y;
+	int bpp = texgz_tex_bpp(self);
+	for(y = 0; y < height; ++y)
+	{
+		int src_y = y + top;
+		unsigned char* src = &self->pixels[src_y*bpp*self->stride];
+		unsigned char* dst = &tex->pixels[y*bpp*width];
+		memcpy(dst, src, bpp*width);
+	}
+	return tex;
+}
+
 int texgz_tex_convolve(texgz_tex_t* self, float* mask, int msize, int rescale)
 {
 	assert(self);
