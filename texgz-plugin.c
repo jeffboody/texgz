@@ -116,7 +116,8 @@ static gint32 texgz_import(const gchar *filename)
 
 typedef struct
 {
-	gint param;
+	gint format;
+	gint pad;
 } texgz_dialog_t;
 
 static gint texgz_export_dialog(texgz_dialog_t* self)
@@ -142,29 +143,46 @@ static gint texgz_export_dialog(texgz_dialog_t* self)
 
 	gimp_window_set_transient(GTK_WINDOW(dialog));
 
-	GtkWidget* frame = gimp_int_radio_group_new(TRUE,
-	                                            "Format",
-	                                            G_CALLBACK(gimp_radio_button_update),
-	                                            &self->param,
-	                                            8888,
-	                                            "RGBA-8888",   8888, NULL,
-	                                            "BGRA-8888",   8889, NULL,
-	                                            "RGB-565",     565,  NULL,
-	                                            "RGBA-4444",   4444, NULL,
-	                                            "RGB-888",     888,  NULL,
-	                                            "RGBA-5551",   5551, NULL,
-	                                            "LUMINANCE",   8,    NULL,
-	                                            "LUMINANCE-F", 0xF,  NULL,
-	                                            NULL);
-	if(frame == NULL)
+	GtkWidget* radio_format = gimp_int_radio_group_new(TRUE,
+	                                                   "Format",
+	                                                   G_CALLBACK(gimp_radio_button_update),
+	                                                   &self->format,
+	                                                   8888,
+	                                                   "RGBA-8888",   8888, NULL,
+	                                                   "BGRA-8888",   8889, NULL,
+	                                                   "RGB-565",     565,  NULL,
+	                                                   "RGBA-4444",   4444, NULL,
+	                                                   "RGB-888",     888,  NULL,
+	                                                   "RGBA-5551",   5551, NULL,
+	                                                   "LUMINANCE",   8,    NULL,
+	                                                   "LUMINANCE-F", 0xF,  NULL,
+	                                                   NULL);
+	if(radio_format == NULL)
 	{
 		LOGE("gimp_int_radio_group_new failed");
-		goto fail_gimp_int_radio_group_new;
+		goto fail_radio_format;
 	}
 
-	gtk_container_set_border_width(GTK_CONTAINER(frame), 6);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), frame, FALSE, TRUE, 0);
-	gtk_widget_show(frame);
+	GtkWidget* radio_pad = gimp_int_radio_group_new(TRUE,
+	                                                "Pad for power-of-two?",
+	                                                G_CALLBACK(gimp_radio_button_update),
+	                                                &self->pad,
+	                                                0,
+	                                                "No",  0, NULL,
+	                                                "Yes", 1, NULL,
+	                                                NULL);
+	if(radio_pad == NULL)
+	{
+		LOGE("gimp_int_radio_group_new failed");
+		goto fail_radio_pad;
+	}
+
+	gtk_container_set_border_width(GTK_CONTAINER(radio_format), 6);
+	gtk_container_set_border_width(GTK_CONTAINER(radio_pad), 6);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), radio_format, FALSE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), radio_pad, FALSE, TRUE, 0);
+	gtk_widget_show(radio_format);
+	gtk_widget_show(radio_pad);
 	gtk_widget_show(dialog);
 
 	if(gimp_dialog_run(GIMP_DIALOG(dialog)) != GTK_RESPONSE_OK)
@@ -180,8 +198,9 @@ static gint texgz_export_dialog(texgz_dialog_t* self)
 
 	// failure
 	fail_gimp_dialog_run:
-	fail_gimp_int_radio_group_new:
-		gtk_widget_destroy(dialog);   // Does this delete the frame also?
+	fail_radio_format:
+	fail_radio_pad:
+		gtk_widget_destroy(dialog);   // Does this delete children also?
 	return 0;
 }
 
@@ -202,49 +221,49 @@ static int texgz_export(const gchar*    filename,
 
 	int type;
 	int format;
-	if(dialog->param == 8888)
+	if(dialog->format == 8888)
 	{
 		type   = TEXGZ_UNSIGNED_BYTE;
 		format = TEXGZ_RGBA;
 	}
-	else if(dialog->param == 8889)
+	else if(dialog->format == 8889)
 	{
 		type   = TEXGZ_UNSIGNED_BYTE;
 		format = TEXGZ_BGRA;
 	}
-	else if(dialog->param == 565)
+	else if(dialog->format == 565)
 	{
 		type   = TEXGZ_UNSIGNED_SHORT_5_6_5;
 		format = TEXGZ_RGB;
 	}
-	else if(dialog->param == 4444)
+	else if(dialog->format == 4444)
 	{
 		type   = TEXGZ_UNSIGNED_SHORT_4_4_4_4;
 		format = TEXGZ_RGBA;
 	}
-	else if(dialog->param == 888)
+	else if(dialog->format == 888)
 	{
 		type   = TEXGZ_UNSIGNED_BYTE;
 		format = TEXGZ_RGB;
 	}
-	else if(dialog->param == 5551)
+	else if(dialog->format == 5551)
 	{
 		type   = TEXGZ_UNSIGNED_SHORT_5_5_5_1;
 		format = TEXGZ_RGBA;
 	}
-	else if(dialog->param == 8)
+	else if(dialog->format == 8)
 	{
 		type   = TEXGZ_UNSIGNED_BYTE;
 		format = TEXGZ_LUMINANCE;
 	}
-	else if(dialog->param == 0xF)
+	else if(dialog->format == 0xF)
 	{
 		type   = TEXGZ_FLOAT;
 		format = TEXGZ_LUMINANCE;
 	}
 	else
 	{
-		LOGE("invalid param=%i", dialog->param);
+		LOGE("invalid format=%i", dialog->format);
 		return 0;
 	}
 
@@ -270,6 +289,12 @@ static int texgz_export(const gchar*    filename,
 	gimp_pixel_rgn_get_rect(&pixel_rgn, tex->pixels,
 	                        0, 0, tex->stride, tex->vstride);
 
+	if(dialog->pad)
+	{
+		if(texgz_tex_pad(tex) == 0)
+			goto fail_texgz_tex_pad;
+	}
+
 	if(texgz_tex_convert(tex, type, format) == 0)
 		goto fail_texgz_tex_convert;
 
@@ -285,6 +310,7 @@ static int texgz_export(const gchar*    filename,
 	// failure
 	fail_texgz_tex_export:
 	fail_texgz_tex_convert:
+	fail_texgz_tex_pad:
 		texgz_tex_delete(&tex);
 	fail_texgz_tex_new:
 		gimp_drawable_detach(drawable);
@@ -406,7 +432,11 @@ static void run(const gchar *name,
 				return;
 			}
 
-			texgz_dialog_t dialog = { 8888 };
+			texgz_dialog_t dialog =
+			{
+				.format = 8888,
+				.pad    = 0,
+			};
 			if(texgz_export_dialog(&dialog) == 0)
 			{
 				LOGE("texgz_export_dialog failed");
