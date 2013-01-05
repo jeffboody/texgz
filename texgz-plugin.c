@@ -37,6 +37,9 @@ static gint32 texgz_import(const gchar *filename)
 	if(texgz_tex_convert(tex, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA) == 0)
 		goto fail_convert;
 
+	if(texgz_tex_crop(tex, 0, 0, tex->height - 1, tex->width - 1) == 0)
+		goto fail_crop;
+
 	gint32 image_ID = gimp_image_new(tex->stride, tex->vstride, GIMP_RGB);
 	if(image_ID == -1)
 	{
@@ -105,6 +108,7 @@ static gint32 texgz_import(const gchar *filename)
 	fail_gimp_image_set_filename:
 		gimp_image_delete(image_ID);
 	fail_gimp_image_new:
+	fail_crop:
 	fail_convert:
 		texgz_tex_delete(&tex);
 	return -1;
