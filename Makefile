@@ -1,11 +1,11 @@
 TARGET   = libtexgz.a
-CLASSES  = texgz_tex texgz_log
+CLASSES  = texgz_tex texgz_log texgz_jpeg
 SOURCE   = $(CLASSES:%=%.c)
 OBJECTS  = $(SOURCE:.c=.o)
 HFILES   = $(CLASSES:%=%.h)
 OPT      = -O2 -Wall
 CFLAGS   = $(OPT) -I.
-LDFLAGS  = -lm -L/usr/lib
+LDFLAGS  = -ljpeg -lm
 AR       = ar
 
 all: $(TARGET)
