@@ -28,56 +28,14 @@
 #include <zlib.h>
 #include <math.h>
 
+#define LOG_TAG "texgz"
+#include "texgz_log.h"
+
 /*
  * private - optimizations
  */
 
 #define TEXGZ_UNROLL_EDGE3X3
-
-/*
- * private - log api
- */
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <stdarg.h>
-
-#ifdef ANDROID
-	#include <android/log.h>
-#endif
-
-static void texgz_log(const char* func, int line, const char* fmt, ...)
-{
-	assert(func);
-	assert(fmt);
-
-	char buf[256];
-	snprintf(buf, 256, "%s@%i ", func, line);
-
-	int size = (int) strlen(buf);
-	if(size < 256)
-	{
-		va_list argptr;
-		va_start(argptr, fmt);
-		vsnprintf(&buf[size], 256 - size, fmt, argptr);
-		va_end(argptr);
-	}
-	#ifdef ANDROID
-		__android_log_print(ANDROID_LOG_INFO, "texgz", buf);
-	#else
-		printf("%s\n", buf);
-	#endif
-}
-
-#ifdef LOG_DEBUG
-	#define LOGD(...) (texgz_log(__func__, __LINE__, __VA_ARGS__))
-#else
-	#define LOGD(...)
-#endif
-#define LOGI(...) (texgz_log(__func__, __LINE__, __VA_ARGS__))
-#define LOGE(...) (texgz_log(__func__, __LINE__, __VA_ARGS__))
 
 /*
  * private - table conversion functions
