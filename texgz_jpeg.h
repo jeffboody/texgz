@@ -27,5 +27,6 @@
 #include "texgz_tex.h"
 
 texgz_tex_t* texgz_jpeg_import(const char* fname);
+int          texgz_jpeg_export(texgz_tex_t* self, const char* fname);
 
 #endif
