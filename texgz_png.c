@@ -38,6 +38,7 @@ texgz_tex_t* texgz_png_import(const char* fname)
 {
 	assert(fname);
 	LOGD("debug fname=%s", fname);
+
 	FILE* f = fopen(fname, "r");
 	if(f == NULL)
 	{
@@ -166,7 +167,7 @@ texgz_tex_t* texgz_png_import(const char* fname)
 	fail_get_IHDR:
 	fail_jmpbuf:
 	fail_info:
-		png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+		png_destroy_read_struct(&png_ptr, info_ptr ? &info_ptr : NULL, NULL);
 	fail_read:
 	fail_sig:
 	fail_fread:
