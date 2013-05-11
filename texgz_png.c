@@ -174,3 +174,100 @@ texgz_tex_t* texgz_png_import(const char* fname)
 		fclose(f);
 	return NULL;
 }
+
+int texgz_png_export(texgz_tex_t* self, const char* fname)
+{
+	assert(self);
+	assert(fname);
+	LOGD("debug fname=%s", fname);
+
+	FILE* f = fopen(fname, "w");
+	if(f == NULL)
+	{
+		LOGE("fopen failed");
+		return 0;
+	}
+
+	png_infop info_ptr  = NULL;
+	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
+	                                              NULL, NULL, NULL);
+	if(png_ptr == NULL)
+	{
+		LOGE("png_create_write_struct failed");
+		goto fail_write;
+	}
+
+	info_ptr = png_create_info_struct(png_ptr);
+	if(info_ptr == NULL)
+	{
+		LOGE("png_create_info_struct failed");
+		goto fail_info;
+	}
+
+	if(setjmp(png_jmpbuf(png_ptr)))
+	{
+		LOGE("png_jmpbuf failed");
+		goto fail_jmpbuf;
+	}
+
+	png_init_io(png_ptr, f);
+
+	int color_type;
+	texgz_tex_t* tex = NULL;
+	if(self->format == TEXGZ_RGBA)
+	{
+		color_type = PNG_COLOR_TYPE_RGB_ALPHA;
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA);
+	}
+	else
+	{
+		color_type = PNG_COLOR_TYPE_RGB;
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB);
+	}
+
+	if(tex == NULL)
+	{
+		goto fail_tex;
+	}
+
+	if(texgz_tex_crop(tex, 0, 0, tex->height - 1, tex->width - 1) == 0)
+	{
+		goto fail_crop;
+	}
+
+	png_set_IHDR(png_ptr, info_ptr,
+	             tex->width, tex->height,
+	             8, color_type,
+	             PNG_INTERLACE_NONE,
+	             PNG_COMPRESSION_TYPE_DEFAULT,
+	             PNG_FILTER_TYPE_DEFAULT);
+	png_write_info(png_ptr, info_ptr);
+
+	int i;
+	unsigned char* pixels = tex->pixels;
+	int bpp               = texgz_tex_bpp(tex);
+	int stride_bytes      = bpp*tex->stride;
+	for(i = 0; i < tex->height; ++i)
+	{
+		png_write_row(png_ptr, pixels);
+		pixels += stride_bytes;
+	}
+
+	texgz_tex_delete(&tex);
+	png_destroy_write_struct(&png_ptr, &info_ptr);
+	fclose(f);
+
+	// success
+	return 1;
+
+	// failure
+	fail_crop:
+		texgz_tex_delete(&tex);
+	fail_tex:
+	fail_jmpbuf:
+	fail_info:
+		png_destroy_write_struct(&png_ptr, info_ptr ? &info_ptr : NULL);
+	fail_write:
+		fclose(f);
+	return 0;
+}
