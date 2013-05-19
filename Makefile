@@ -1,5 +1,5 @@
 TARGET   = libtexgz.a
-CLASSES  = texgz_tex texgz_log texgz_jpeg texgz_png
+CLASSES  = texgz_tex texgz_log texgz_jpeg texgz_png texgz_mgm
 SOURCE   = $(CLASSES:%=%.c)
 OBJECTS  = $(SOURCE:.c=.o)
 HFILES   = $(CLASSES:%=%.h)

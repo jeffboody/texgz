@@ -42,6 +42,28 @@ texgz_tex_t* texgz_jpeg_import(const char* fname)
 		return NULL;
 	}
 
+	texgz_tex_t* tex = texgz_jpeg_importf(f);
+	if(tex == NULL)
+	{
+		goto fail_tex;
+	}
+
+	fclose(f);
+
+	// success
+	return tex;
+
+	// failure
+	fail_tex:
+		fclose(f);
+	return NULL;
+}
+
+texgz_tex_t* texgz_jpeg_importf(FILE* f)
+{
+	assert(f);
+	LOGD("debug");
+
 	// start decompressing the jpeg
 	struct jpeg_decompress_struct cinfo;
 	struct jpeg_error_mgr jerr;
@@ -94,7 +116,6 @@ texgz_tex_t* texgz_jpeg_import(const char* fname)
 	}
 	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
-	fclose(f);
 
 	// success
 	return tex;
@@ -107,7 +128,6 @@ texgz_tex_t* texgz_jpeg_import(const char* fname)
 		jpeg_finish_decompress(&cinfo);
 	fail_header:
 		jpeg_destroy_decompress(&cinfo);
-		fclose(f);
 	return NULL;
 }
 

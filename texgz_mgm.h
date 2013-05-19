@@ -21,14 +21,13 @@
  *
  */
 
-#ifndef texgz_jpeg_H
-#define texgz_jpeg_H
+#ifndef texgz_mgm_H
+#define texgz_mgm_H
 
 #include "texgz_tex.h"
-#include <stdio.h>
 
-texgz_tex_t* texgz_jpeg_import(const char* fname);
-texgz_tex_t* texgz_jpeg_importf(FILE* f);
-int          texgz_jpeg_export(texgz_tex_t* self, const char* fname);
+texgz_tex_t* texgz_mgm_import(const char* fname,
+                              unsigned char dx,
+                              unsigned char dy);
 
 #endif
