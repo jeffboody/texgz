@@ -13,72 +13,160 @@
 -- For a description of the Mercator Projection
 -- http://en.m.wikipedia.org/wiki/Mercator_projection
 --
--- Note that math.log is ln
+-- To convert latitude/longitude/height to x/y/z
+-- www.wollindina.com/HP-33S/XYZ_1.pdf
 
-function coord2tile(Zoom, Lat, Lon)
-	local PI         = 3.141592654
-	local RadLat     = Lat*(PI/180)
-	local RadLon     = Lon*(PI/180)
-	local MercX      = RadLon
-	local MercY      = math.log(math.tan(RadLat) + 1/math.cos(RadLat))
-	local CartX      = MercX + PI
-	local CartY      = PI - MercY
-	local WorldU     = CartX/(2*PI)
-	local WorldV     = CartY/(2*PI)
-	local NumSubTile = 8
-	local TileX      = WorldU*(2^Zoom)/NumSubTile
-	local TileY      = WorldV*(2^Zoom)/NumSubTile
-	local TileIX     = math.floor(TileX)
-	local TileIY     = math.floor(TileY)
-	local SubTileX   = NumSubTile*(TileX - TileIX)
-	local SubTileY   = NumSubTile*(TileY - TileIY)
-	local SubTileIX  = math.floor(SubTileX)
-	local SubTileIY  = math.floor(SubTileY)
-	local SubTileU   = SubTileX - SubTileIX
-	local SubTileV   = SubTileY - SubTileIY
+PI    = 3.141592654
+log   = math.log
+tan   = math.tan
+cos   = math.cos
+sin   = math.sin
+floor = math.floor
+atan  = math.atan
+exp   = math.exp
+sqrt  = math.sqrt
 
-	-- sumarize stats
-	print("-- coord2tile --")
-	print("WorldU    = " .. WorldU)
-	print("WorldV    = " .. WorldV)
-	print("TileIX    = " .. TileIX)
-	print("TileIY    = " .. TileIY)
-	print("SubTileIX = " .. SubTileIX)
-	print("SubTileIY = " .. SubTileIY)
-	print("SubTileU  = " .. SubTileU)
-	print("SubTileV  = " .. SubTileV)
+NUMSUBTILE      = 8
+NUMSUBSAMPLEMGM = 256
+NUMSUBSAMPLENED = 32
 
-	return { x=TileX, y=TileY }
+function feet2meters(feet)
+	return feet*1609.344/5280.0
 end
 
-function tile2coord(Zoom, TileX, TileY)
-	local PI         = 3.141592654
-	local NumSubTile = 8
-	local WorldU     = NumSubTile*TileX/(2^Zoom)
-	local WorldV     = NumSubTile*TileY/(2^Zoom)
-	local CartX      = 2*PI*WorldU
-	local CartY      = 2*PI*WorldV
-	local MercX      = CartX - PI
-	local MercY      = PI - CartY
-	local RadLon     = MercX
-	local RadLat     = 2*math.atan(math.exp(MercY)) - PI/2
-	local Lat        = RadLat/(PI/180)
-	local Lon        = RadLon/(PI/180)
+function coord2tile(zoom, lat, lon)
+	local radlat   = lat*(PI/180)
+	local radlon   = lon*(PI/180)
 
-	print("-- tile2coord --")
-	print("WorldU = " .. WorldU)
-	print("WorldV = " .. WorldV)
-	print("Lat    = " .. Lat)
-	print("Lon    = " .. Lon)
+	local tile     = { }
+	tile.mercx     = radlon
+	tile.mercy     = log(tan(radlat) + 1/cos(radlat))
+	tile.cartx     = tile.mercx + PI
+	tile.carty     = PI - tile.mercy
+	tile.worldu    = tile.cartx/(2*PI)
+	tile.worldv    = tile.carty/(2*PI)
+	tile.x         = tile.worldu*(2^zoom)/NUMSUBTILE
+	tile.y         = tile.worldv*(2^zoom)/NUMSUBTILE
+	tile.ix        = floor(tile.x)
+	tile.iy        = floor(tile.y)
+	tile.subtilex  = NUMSUBTILE*(tile.x - tile.ix)
+	tile.subtiley  = NUMSUBTILE*(tile.y - tile.iy)
+	tile.subtileix = floor(tile.subtilex)
+	tile.subtileiy = floor(tile.subtiley)
+	tile.subtileu  = tile.subtilex - tile.subtileix
+	tile.subtilev  = tile.subtiley - tile.subtileiy
 
-	return { lat=Lat, lon=Lon }
+	return tile
 end
 
-home = { lat=40.061295, lon=-105.214552 }
+function tile2coord(zoom, tilex, tiley)
+	local coord  = { }
+	coord.worldu = NUMSUBTILE*tilex/(2^zoom)
+	coord.worldv = NUMSUBTILE*tiley/(2^zoom)
+	coord.cartx  = 2*PI*coord.worldu
+	coord.carty  = 2*PI*coord.worldv
+	coord.mercx  = coord.cartx - PI
+	coord.mercy  = PI - coord.carty
+
+	local radlon = coord.mercx
+	local radlat = 2*atan(exp(coord.mercy)) - PI/2
+
+	coord.lat = radlat/(PI/180)
+	coord.lon = radlon/(PI/180)
+
+	return coord
+end
+
+function coord2xyz(lat, lon, height)
+	-- WSG84/NAD83 coordinate system
+	-- meters
+	local a      = 6378137.0
+	local e2     = 0.006694381
+	local radlat = lat*(PI/180)
+	local radlon = lon*(PI/180)
+	local s2     = sin(radlat)*sin(radlat)
+	local v      = a/sqrt(1.0 - e2*s2)
+
+	local xyz = { }
+	xyz.x     = (v + height)*cos(radlat)*cos(radlon)
+	xyz.y     = (v + height)*cos(radlat)*sin(radlon)
+	xyz.z     = (v*(1 - e2) + height)*sin(radlat)
+
+	return xyz
+end
+
+home = { lat=40.061295, lon=-105.214552, height=feet2meters(5280) }
 
 print("-- home --")
-print("Lat = " .. home.lat)
-print("Lon = " .. home.lon)
+print("lat = " .. home.lat)
+print("lon = " .. home.lon)
 
-tile  = coord2tile(14, home.lat, home.lon)
+print("\n-- home coord2tile --")
+tile = coord2tile(14, home.lat, home.lon)
+print("lat       = " .. home.lat)
+print("lon       = " .. home.lon)
+print("worldu    = " .. tile.worldu)
+print("worldv    = " .. tile.worldv)
+print("x         = " .. tile.x)
+print("y         = " .. tile.y)
+print("ix        = " .. tile.ix)
+print("iy        = " .. tile.iy)
+print("subtileix = " .. tile.subtileix)
+print("subtileiy = " .. tile.subtileiy)
+print("subtileu  = " .. tile.subtileu)
+print("subtilev  = " .. tile.subtilev)
+
+print("\n-- home coord2time at zoom --")
+for i=0,14 do
+	tile = coord2tile(i, home.lat, home.lon)
+	print(i .. ": ix =" .. tile.ix        .. ", iy =" .. tile.iy)
+	print(i .. ": six=" .. tile.subtileix .. ", siy=" .. tile.subtileiy)
+end
+
+print("\n-- home tile2coord --")
 coord = tile2coord(14, tile.x, tile.y)
+print("x      = " .. tile.x)
+print("y      = " .. tile.y)
+print("worldu = " .. coord.worldu)
+print("worldv = " .. coord.worldv)
+print("lat    = " .. coord.lat)
+print("lon    = " .. coord.lon)
+
+print("\n-- home coord2xyz --")
+xyz = coord2xyz(home.lat, home.lon, home.height)
+print("lat    = " .. home.lat)
+print("lon    = " .. home.lon)
+print("height = " .. home.height)
+print("x      = " .. xyz.x)
+print("y      = " .. xyz.y)
+print("z      = " .. xyz.z)
+
+print("\n-- mgm sample-per-degree at home --")
+smgm = NUMSUBTILE*NUMSUBSAMPLEMGM
+for i=1,15 do
+	tile0 = coord2tile(i, 40, -106)
+	tile1 = coord2tile(i, 41, -105)
+	print(i .. ": dx=" .. smgm*(tile1.x - tile0.x) .. ", dy=" .. smgm*(tile0.y - tile1.y))
+end
+
+print("\n-- mgm sample-per-degree at equator --")
+for i=1,15 do
+	tile0 = coord2tile(i, -0.5, -0.5)
+	tile1 = coord2tile(i, 0.5, 0.5)
+	print(i .. ": dx=" .. smgm*(tile1.x - tile0.x) .. ", dy=" .. smgm*(tile0.y - tile1.y))
+end
+
+print("\n-- ned sample-per-degree at home --")
+sned = NUMSUBTILE*NUMSUBSAMPLENED
+for i=1,15 do
+	tile0 = coord2tile(i, 40, -106)
+	tile1 = coord2tile(i, 41, -105)
+	print(i .. ": dx=" .. sned*(tile1.x - tile0.x) .. ", dy=" .. sned*(tile0.y - tile1.y))
+end
+
+print("\n-- ned sample-per-degree at equator --")
+for i=1,15 do
+	tile0 = coord2tile(i, -0.5, -0.5)
+	tile1 = coord2tile(i, 0.5, 0.5)
+	print(i .. ": dx=" .. sned*(tile1.x - tile0.x) .. ", dy=" .. sned*(tile0.y - tile1.y))
+end
