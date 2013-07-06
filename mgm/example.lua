@@ -141,6 +141,15 @@ print("x      = " .. xyz.x)
 print("y      = " .. xyz.y)
 print("z      = " .. xyz.z)
 
+print("\n-- home coord2meter --")
+xyz     = coord2xyz(home.lat, home.lon, home.height)
+xyz_lat = coord2xyz(home.lat + 1.0, home.lon, home.height)
+xyz_lon = coord2xyz(home.lat, home.lon + 1.0, home.height)
+dlat    = sqrt((xyz_lat.x - xyz.x)^2 + (xyz_lat.y - xyz.y)^2 + (xyz_lat.z - xyz.z)^2)
+dlon    = sqrt((xyz_lon.x - xyz.x)^2 + (xyz_lon.y - xyz.y)^2 + (xyz_lon.z - xyz.z)^2)
+print("meters-per-lat = " .. dlat)
+print("meters-per-lon = " .. dlon)
+
 print("\n-- mgm sample-per-degree at home --")
 smgm = NUMSUBTILE*NUMSUBSAMPLEMGM
 for i=1,15 do
