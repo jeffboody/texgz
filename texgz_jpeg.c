@@ -22,7 +22,11 @@
  */
 
 #include <stdio.h>
-#include <jpeglib.h>
+#ifdef ANDROID
+	#include "jpeg/jpeglib.h"
+#else
+	#include <jpeglib.h>
+#endif
 #include <stdlib.h>
 #include <assert.h>
 #include "texgz_jpeg.h"
