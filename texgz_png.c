@@ -98,6 +98,27 @@ texgz_tex_t* texgz_png_import(const char* fname)
 		goto fail_get_IHDR;
 	}
 
+	if(color_type == PNG_COLOR_TYPE_PALETTE)
+	{
+		png_set_palette_to_rgb(png_ptr);
+
+		if(png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+		{
+			png_set_tRNS_to_alpha(png_ptr);
+		}
+
+		png_read_update_info(png_ptr, info_ptr);
+
+		if(png_get_IHDR(png_ptr, info_ptr,
+		                &width, &height,
+		                &bit_depth, &color_type,
+		                NULL, NULL, NULL) == 0)
+		{
+			LOGE("png_get_IHDR");
+			goto fail_get_IHDR;
+		}
+	}
+
 	if(bit_depth != 8)
 	{
 		LOGE("invalid bit_depth=%i", bit_depth);
