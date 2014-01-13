@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <string.h>
 #include <texgz/texgz_tex.h>
+#include <texgz/texgz_mtex.h>
 #include <texgz/texgz_jpeg.h>
 #include <texgz/texgz_png.h>
 #include <texgz/texgz_mgm.h>
@@ -55,6 +56,7 @@ static void usage(const char* argv0)
 {
 	LOGE("usage1: %s [format] [src] [dst]", argv0);
 	LOGE("usage2: %s [format] [dx] [dy] [src.mgm] [dst]", argv0);
+	LOGE("usage3: %s [format] [dx] [dy] [src.mtex] [dst]", argv0);
 	LOGE("RGBA-8888   - texgz, png");
 	LOGE("BGRA-8888   - texgz");
 	LOGE("RGB-565     - texgz");
@@ -89,7 +91,8 @@ int main(int argc, char** argv)
 		arg_src    = argv[2];
 		arg_dst    = argv[3];
 
-		if(check_ext(arg_src, "mgm"))
+		if(check_ext(arg_src, "mgm") ||
+		   check_ext(arg_src, "mtex"))
 		{
 			usage(argv[0]);
 			return EXIT_FAILURE;
@@ -167,6 +170,10 @@ int main(int argc, char** argv)
 	else if(check_ext(arg_src, "mgm"))
 	{
 		tex = texgz_mgm_import(arg_src, dx, dy);
+	}
+	else if(check_ext(arg_src, "mtex"))
+	{
+		tex = texgz_mtex_importxy(arg_src, dx, dy);
 	}
 	else
 	{

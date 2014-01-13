@@ -24,6 +24,7 @@ For convenience the texgz library can also import/export these file types.
 
 * jpg
 * png
+* mtex
 * mgm (import subtile only)
 
 The mgm file type is used in mapping software such as MyTrails. These mgm
