@@ -39,6 +39,13 @@ texgz-convert
 A conversion utility that also serves as an example for using the
 texgz library.
 
+osm2mtex
+========
+
+Convert png images exported by OSM in the directory layout
+localhost/osm/zoom/xj/yi.png to the directory layout
+mtex/zoom/x_y.mtex as RGBA-4444 mtex images.
+
 example using texgz as a texture in OpenGL ES
 =============================================
 
