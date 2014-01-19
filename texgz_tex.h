@@ -24,6 +24,8 @@
 #ifndef texgz_tex_H
 #define texgz_tex_H
 
+#include <stdio.h>
+
 // used to determine the file type and endianess
 #define TEXGZ_MAGIC 0x000B00D9
 
@@ -58,7 +60,9 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 void         texgz_tex_delete(texgz_tex_t** _self);
 texgz_tex_t* texgz_tex_copy(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_import(const char* filename);
+texgz_tex_t* texgz_tex_importf(FILE* f, int size);
 int          texgz_tex_export(texgz_tex_t* self, const char* filename);
+int          texgz_tex_exportf(texgz_tex_t* self, FILE* f);
 int          texgz_tex_convert(texgz_tex_t* self, int type, int format);
 texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format);
 int          texgz_tex_flipvertical(texgz_tex_t* self);

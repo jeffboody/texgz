@@ -613,6 +613,8 @@ static texgz_tex_t* texgz_tex_8888format(texgz_tex_t* self, int format)
  * private
  */
 
+#define TEXGZ_TEX_HSIZE 28
+
 static int texgz_readint(const unsigned char* buffer, int offset)
 {
 	assert(buffer);
@@ -636,6 +638,48 @@ static int texgz_swapendian(int i)
 	o = o | ((i >> 8) & 0x0000FF00);
 	o = o | ((i >> 24) & 0x000000FF);
 	return o;
+}
+
+static int texgz_parseh(const unsigned char* buffer,
+                        int* type, int* format,
+                        int* width, int* height,
+                        int* stride, int* vstride)
+{
+	assert(buffer);
+	assert(type);
+	assert(format);
+	assert(width);
+	assert(height);
+	assert(stride);
+	assert(vstride);
+	LOGD("debug");
+
+	int magic = texgz_readint(buffer, 0);
+	if(magic == 0x000B00D9)
+	{
+		*type    = texgz_readint(buffer, 4);
+		*format  = texgz_readint(buffer, 8);
+		*width   = texgz_readint(buffer, 12);
+		*height  = texgz_readint(buffer, 16);
+		*stride  = texgz_readint(buffer, 20);
+		*vstride = texgz_readint(buffer, 24);
+	}
+	else if(texgz_swapendian(magic) == 0x000B00D9)
+	{
+		*type    = texgz_swapendian(texgz_readint(buffer, 4));
+		*format  = texgz_swapendian(texgz_readint(buffer, 8));
+		*width   = texgz_swapendian(texgz_readint(buffer, 12));
+		*height  = texgz_swapendian(texgz_readint(buffer, 16));
+		*stride  = texgz_swapendian(texgz_readint(buffer, 20));
+		*vstride = texgz_swapendian(texgz_readint(buffer, 24));
+	}
+	else
+	{
+		LOGE("bad magic=0x%.8X", magic);
+		return 0;
+	}
+
+	return 1;
 }
 
 static int texgz_nextpot(int x)
@@ -778,44 +822,25 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 		return NULL;
 	}
 
-	// read header (28 bytes)
+	// read header
+	unsigned char buffer[4096];   // 4KB
+	int bytes_read = gzread(f, buffer, TEXGZ_TEX_HSIZE);
+	if(bytes_read != TEXGZ_TEX_HSIZE)
+	{
+		LOGE("gzread failed to read header");
+		goto fail_header;
+	}
+
 	int type;
 	int format;
 	int width;
 	int height;
 	int stride;
 	int vstride;
-	unsigned char buffer[4096];   // 4KB
-	int bytes_read = gzread(f, buffer, 28);
-	if(bytes_read != 28)
+	if(texgz_parseh(buffer, &type, &format,
+                    &width, &height, &stride, &vstride) == 0)
 	{
-		LOGE("gzread failed to read header");
-		goto fail_header;
-	}
-
-	int magic = texgz_readint(buffer, 0);
-	if(magic == 0x000B00D9)
-	{
-		type    = texgz_readint(buffer, 4);
-		format  = texgz_readint(buffer, 8);
-		width   = texgz_readint(buffer, 12);
-		height  = texgz_readint(buffer, 16);
-		stride  = texgz_readint(buffer, 20);
-		vstride = texgz_readint(buffer, 24);
-	}
-	else if(texgz_swapendian(magic) == 0x000B00D9)
-	{
-		type    = texgz_swapendian(texgz_readint(buffer, 4));
-		format  = texgz_swapendian(texgz_readint(buffer, 8));
-		width   = texgz_swapendian(texgz_readint(buffer, 12));
-		height  = texgz_swapendian(texgz_readint(buffer, 16));
-		stride  = texgz_swapendian(texgz_readint(buffer, 20));
-		vstride = texgz_swapendian(texgz_readint(buffer, 24));
-	}
-	else
-	{
-		LOGE("bad magic=0x%.8X", magic);
-		goto fail_magic;
+		goto fail_parseh;
 	}
 
 	texgz_tex_t* self = texgz_tex_new(width, height, stride, vstride, type, format, NULL);
@@ -850,9 +875,113 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 	fail_size:
 		texgz_tex_delete(&self);
 	fail_tex:
-	fail_magic:
+	fail_parseh:
 	fail_header:
 		gzclose(f);
+	return NULL;
+}
+
+texgz_tex_t* texgz_tex_importf(FILE* f, int size)
+{
+	assert(f);
+	assert(size > 0);
+	LOGD("debug size=%i", size);
+
+	// allocate src buffer
+	char* src = (char*) malloc(size*sizeof(char));
+	if(src == NULL)
+	{
+		LOGE("malloc failed");
+		return NULL;
+	}
+
+	// read buffer
+	long start = ftell(f);
+	if(fread((void*) src, sizeof(char), size, f) != size)
+	{
+		LOGE("fread failed");
+		goto fail_read;
+	}
+
+	// uncompress the header
+	unsigned char header[TEXGZ_TEX_HSIZE];
+	uLong         hsize    = TEXGZ_TEX_HSIZE;
+	uLong         src_size = (uLong) size;
+	uncompress((Bytef*) header, &hsize, (const Bytef*) src, src_size);
+	if(hsize != TEXGZ_TEX_HSIZE)
+	{
+		LOGE("uncompress failed hsize=%i", (int) hsize);
+		goto fail_uncompress_header;
+	}
+
+	int type;
+	int format;
+	int width;
+	int height;
+	int stride;
+	int vstride;
+	if(texgz_parseh(header, &type, &format,
+                    &width, &height, &stride, &vstride) == 0)
+	{
+		goto fail_parseh;
+	}
+
+	// create tex
+	texgz_tex_t* self = texgz_tex_new(width, height,
+	                                  stride, vstride,
+	                                  type, format,
+	                                  NULL);
+	if(self == NULL)
+	{
+		goto fail_tex;
+	}
+
+	// allocate dst buffer
+	int   bytes        = texgz_tex_size(self);
+	uLong dst_size     =  TEXGZ_TEX_HSIZE + bytes;
+	unsigned char* dst = (unsigned char*)
+	                     malloc(dst_size*sizeof(unsigned char));
+	if(dst == NULL)
+	{
+		LOGE("malloc failed");
+		goto fail_dst;
+	}
+
+	if(uncompress((Bytef*) dst, &dst_size, (const Bytef*) src, src_size) != Z_OK)
+	{
+		LOGE("fail uncompress");
+		goto fail_uncompress;
+	}
+
+	if(dst_size != (TEXGZ_TEX_HSIZE + bytes))
+	{
+		LOGE("invalid dst_size=%i, expected=%i",
+		     (int) dst_size, (int) (TEXGZ_TEX_HSIZE + bytes));
+		goto fail_dst_size;
+	}
+
+	// copy buffer into tex
+	memcpy(self->pixels, &dst[TEXGZ_TEX_HSIZE], bytes);
+
+	// free src and dst buffers
+	free(src);
+	free(dst);
+
+	// success
+	return self;
+
+	// failure
+	fail_dst_size:
+	fail_uncompress:
+		free(dst);
+	fail_dst:
+		texgz_tex_delete(&self);
+	fail_tex:
+	fail_parseh:
+	fail_uncompress_header:
+	fail_read:
+		fseek(f, start, SEEK_SET);
+		free(src);
 	return NULL;
 }
 
@@ -936,6 +1065,80 @@ int texgz_tex_export(texgz_tex_t* self, const char* filename)
 	fail_size:
 	fail_header:
 		gzclose(f);
+	return 0;
+}
+
+int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
+{
+	assert(self);
+	assert(f);
+	LOGD("debug")
+
+	int bytes = texgz_tex_size(self);
+	if(bytes == 0)
+	{
+		return 0;
+	}
+
+	// allocate src buffer
+	int size = bytes + TEXGZ_TEX_HSIZE;
+	unsigned char* src = (unsigned char*) malloc(size*sizeof(unsigned char));
+	if(src == NULL)
+	{
+		LOGE("malloc failed");
+		return 0;
+	}
+
+	// copy tex to src buffer
+	int* srci = (int*) src;
+	srci[0] = TEXGZ_MAGIC;
+	srci[1] = self->type;
+	srci[2] = self->format;
+	srci[3] = self->width;
+	srci[4] = self->height;
+	srci[5] = self->stride;
+	srci[6] = self->vstride;
+	memcpy(&src[TEXGZ_TEX_HSIZE], self->pixels, bytes);
+
+	// allocate dst buffer
+	uLong src_size = (uLong) (TEXGZ_TEX_HSIZE + bytes);
+	uLong dst_size = compressBound(src_size);
+	unsigned char* dst = (unsigned char*)
+	                     malloc(dst_size*sizeof(unsigned char));
+	if(dst == NULL)
+	{
+		LOGE("malloc failed");
+		goto fail_dst;
+	}
+
+	// compress buffer
+	if(compress((Bytef*) dst, (uLongf*) &dst_size,
+	            (const Bytef*) src, src_size) != Z_OK)
+	{
+		LOGE("compress failed");
+		goto fail_compress;
+	}
+
+	// write buffer
+	if(fwrite(dst, sizeof(unsigned char), dst_size, f) != dst_size)
+	{
+		LOGE("fwrite failed");
+		goto fail_fwrite;
+	}
+
+	// free src and dst buffer
+	free(src);
+	free(dst);
+
+	// success
+	return 1;
+
+	// failure
+	fail_fwrite:
+	fail_compress:
+		free(dst);
+	fail_dst:
+		free(src);
 	return 0;
 }
 
