@@ -42,7 +42,7 @@ texgz_tex_t* texgz_jpeg_import(const char* fname)
 	FILE *f = fopen(fname, "r");
 	if(f == NULL)
 	{
-		LOGE("fopen %s failed", fname);
+		LOGE("fopen failed for %s", fname);
 		return NULL;
 	}
 
@@ -155,7 +155,7 @@ int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 	FILE* f = fopen(fname, "w");
 	if(f == NULL)
 	{
-		LOGE("fopen %s failed", fname);
+		LOGE("fopen failed for %s", fname);
 		goto fail_open;
 	}
 
