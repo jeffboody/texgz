@@ -155,6 +155,7 @@ static gint texgz_export_dialog(texgz_dialog_t* self)
 	                                                   "RGB-888",     888,  NULL,
 	                                                   "RGBA-5551",   5551, NULL,
 	                                                   "LUMINANCE",   8,    NULL,
+	                                                   "LUMINANCE-A", 16,   NULL,
 	                                                   "LUMINANCE-F", 0xF,  NULL,
 	                                                   NULL);
 	if(radio_format == NULL)
@@ -255,6 +256,11 @@ static int texgz_export(const gchar*    filename,
 	{
 		type   = TEXGZ_UNSIGNED_BYTE;
 		format = TEXGZ_LUMINANCE;
+	}
+	else if(dialog->format == 16)
+	{
+		type   = TEXGZ_UNSIGNED_BYTE;
+		format = TEXGZ_LUMINANCE_ALPHA;
 	}
 	else if(dialog->format == 0xF)
 	{

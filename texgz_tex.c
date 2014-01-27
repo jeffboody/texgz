@@ -283,6 +283,44 @@ static texgz_tex_t* texgz_tex_8to8888(texgz_tex_t* self)
 	return tex;
 }
 
+static texgz_tex_t* texgz_tex_LAto8888(texgz_tex_t* self)
+{
+	assert(self);
+	LOGD("debug");
+
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_LUMINANCE_ALPHA))
+	{
+		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
+                                     self->stride, self->vstride,
+                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                                     NULL);
+	if(tex == NULL)
+		return NULL;
+
+	int x, y, idx;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = y*tex->stride + x;
+			unsigned char* src = &self->pixels[2*idx];
+			unsigned char* dst = &tex->pixels[4*idx];
+
+			dst[0] = src[0];
+			dst[1] = src[0];
+			dst[2] = src[0];
+			dst[3] = src[1];
+		}
+	}
+
+	return tex;
+}
+
 static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
 {
 	assert(self);
@@ -515,6 +553,43 @@ static texgz_tex_t* texgz_tex_8888to8(texgz_tex_t* self)
 	return tex;
 }
 
+static texgz_tex_t* texgz_tex_8888toLA(texgz_tex_t* self)
+{
+	assert(self);
+	LOGD("debug");
+
+	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	{
+		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
+	                                 self->stride, self->vstride,
+	                                 TEXGZ_UNSIGNED_BYTE,
+	                                 TEXGZ_LUMINANCE_ALPHA,
+	                                 NULL);
+	if(tex == NULL)
+		return NULL;
+
+	int x, y, idx;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = y*tex->stride + x;
+			unsigned char* src = &self->pixels[4*idx];
+			unsigned char* dst = &tex->pixels[2*idx];
+
+			unsigned int luminance = (src[0] + src[1] + src[2])/3;
+			dst[0] = (unsigned char) luminance;
+			dst[1] = src[3];
+		}
+	}
+
+	return tex;
+}
+
 static texgz_tex_t* texgz_tex_8888toF(texgz_tex_t* self)
 {
 	assert(self);
@@ -730,6 +805,9 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_RGB))
 		; // ok
 	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_LUMINANCE))
+		; // ok
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_LUMINANCE_ALPHA))
 		; // ok
 	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_BGRA))
 		; // ok
@@ -1187,6 +1265,9 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 		tmp = texgz_tex_888to8888(self);
 	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_LUMINANCE))
 		tmp = texgz_tex_8to8888(self);
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_LUMINANCE_ALPHA))
+		tmp = texgz_tex_LAto8888(self);
 	else if((self->type == TEXGZ_FLOAT) && (self->format == TEXGZ_LUMINANCE))
 		tmp = texgz_tex_Fto8888(self);
 	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_BGRA))
@@ -1216,6 +1297,9 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 		tex = texgz_tex_8888to888(tmp);
 	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_LUMINANCE))
 		tex = texgz_tex_8888to8(tmp);
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_LUMINANCE_ALPHA))
+		tex = texgz_tex_8888toLA(tmp);
 	else if((type == TEXGZ_FLOAT) && (format == TEXGZ_LUMINANCE))
 		tex = texgz_tex_8888toF(tmp);
 	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_BGRA))
@@ -1419,6 +1503,7 @@ int texgz_tex_bpp(texgz_tex_t* self)
 	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_RGBA))      bpp = 4;
 	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_BGRA))      bpp = 4;
 	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_LUMINANCE)) bpp = 1;
+	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_LUMINANCE_ALPHA)) bpp = 2;
 	else if((self->type == TEXGZ_FLOAT)                  && (self->format == TEXGZ_LUMINANCE)) bpp = 4;
 	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_6_5)   && (self->format == TEXGZ_RGB))       bpp = 2;
 	else if((self->type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) && (self->format == TEXGZ_RGBA))      bpp = 2;

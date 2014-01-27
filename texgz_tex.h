@@ -37,10 +37,11 @@
 #define TEXGZ_FLOAT                  0x1406
 
 // OpenGL ES format
-#define TEXGZ_RGB       0x1907
-#define TEXGZ_RGBA      0x1908
-#define TEXGZ_BGRA      0x80E1
-#define TEXGZ_LUMINANCE 0x1909
+#define TEXGZ_RGB             0x1907
+#define TEXGZ_RGBA            0x1908
+#define TEXGZ_BGRA            0x80E1
+#define TEXGZ_LUMINANCE       0x1909
+#define TEXGZ_LUMINANCE_ALPHA 0x190A
 
 typedef struct
 {

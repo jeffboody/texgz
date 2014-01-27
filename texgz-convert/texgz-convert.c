@@ -64,6 +64,7 @@ static void usage(const char* argv0)
 	LOGE("RGB-888     - texgz, png, jpg");
 	LOGE("RGBA-5551   - texgz");
 	LOGE("LUMINANCE   - texgz");
+	LOGE("LUMINANCE-A - texgz");
 	LOGE("LUMINANCE-F - texgz");
 }
 
@@ -141,6 +142,11 @@ int main(int argc, char** argv)
 	{
 		type  = TEXGZ_UNSIGNED_BYTE;
 		format = TEXGZ_LUMINANCE;
+	}
+	else if(strcmp(arg_format, "LUMINANCE-A") == 0)
+	{
+		type  = TEXGZ_UNSIGNED_BYTE;
+		format = TEXGZ_LUMINANCE_ALPHA;
 	}
 	else if(strcmp(arg_format, "LUMINANCE-F") == 0)
 	{
