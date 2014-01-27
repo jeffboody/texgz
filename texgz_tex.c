@@ -507,8 +507,8 @@ static texgz_tex_t* texgz_tex_8888to8(texgz_tex_t* self)
 			unsigned char* src = &self->pixels[4*idx];
 			unsigned char* dst = &tex->pixels[idx];
 
-			// use the red channel for luminance
-			dst[0] = src[0];
+			unsigned int luminance = (src[0] + src[1] + src[2])/3;
+			dst[0] = (unsigned char) luminance;
 		}
 	}
 
