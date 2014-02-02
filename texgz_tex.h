@@ -34,6 +34,7 @@
 #define TEXGZ_UNSIGNED_SHORT_5_5_5_1 0x8034
 #define TEXGZ_UNSIGNED_SHORT_5_6_5   0x8363
 #define TEXGZ_UNSIGNED_BYTE          0x1401
+#define TEXGZ_SHORT                  0x1402
 #define TEXGZ_FLOAT                  0x1406
 
 // OpenGL ES format

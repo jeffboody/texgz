@@ -806,6 +806,8 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 		; // ok
 	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_LUMINANCE))
 		; // ok
+	else if((type == TEXGZ_SHORT) && (format == TEXGZ_LUMINANCE))
+		; // ok
 	else if((type == TEXGZ_UNSIGNED_BYTE) &&
 	        (format == TEXGZ_LUMINANCE_ALPHA))
 		; // ok
@@ -1253,6 +1255,7 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 		return texgz_tex_copy(self);
 
 	// convert to RGBA-8888
+	// No conversions are allowed on TEXGZ_SHORT
 	texgz_tex_t* tmp        = NULL;
 	int      tmp_delete = 1;   // delete if self is not 8888
 	if((self->type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) && (self->format == TEXGZ_RGBA))
@@ -1503,6 +1506,7 @@ int texgz_tex_bpp(texgz_tex_t* self)
 	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_RGBA))      bpp = 4;
 	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_BGRA))      bpp = 4;
 	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_LUMINANCE)) bpp = 1;
+	else if((self->type == TEXGZ_SHORT)                  && (self->format == TEXGZ_LUMINANCE)) bpp = 2;
 	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_LUMINANCE_ALPHA)) bpp = 2;
 	else if((self->type == TEXGZ_FLOAT)                  && (self->format == TEXGZ_LUMINANCE)) bpp = 4;
 	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_6_5)   && (self->format == TEXGZ_RGB))       bpp = 2;
