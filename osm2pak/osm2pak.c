@@ -47,6 +47,22 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
+	// create directories if necessary
+	char dname[256];
+	snprintf(dname, 256, "%s", "osm");
+	if(mkdir(dname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+	{
+		if(errno == EEXIST)
+		{
+			// already exists
+		}
+		else
+		{
+			LOGE("mkdir %s failed", dname);
+			return EXIT_FAILURE;
+		}
+	}
+
 	// open the list
 	FILE* f = fopen(argv[1], "r");
 	if(f == NULL)
