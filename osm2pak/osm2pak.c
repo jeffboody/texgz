@@ -28,9 +28,9 @@
 #include <sys/types.h>
 #include "texgz/texgz_tex.h"
 #include "texgz/texgz_png.h"
-#include "texgz/texgz_mtex.h"
+#include "libpak/pak_file.h"
 
-#define LOG_TAG "osm2mtex"
+#define LOG_TAG "osm2pak"
 #include "texgz/texgz_log.h"
 
 /***********************************************************
@@ -55,7 +55,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	// iteratively generate mtex images
+	// iteratively pak osm images
 	char* line = NULL;
 	size_t n   = 0;
 	int index = 0;
@@ -72,10 +72,32 @@ int main(int argc, char** argv)
 
 		LOGI("%i: zoom=%i, x=%i, y=%i", index++, zoom, x, y);
 
+		// create directories if necessary
+		char dname[256];
+		snprintf(dname, 256, "osm/%i", zoom);
+		if(mkdir(dname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+		{
+			if(errno == EEXIST)
+			{
+				// already exists
+			}
+			else
+			{
+				LOGE("mkdir %s failed", dname);
+				continue;
+			}
+		}
+
+		char fname[256];
+		snprintf(fname, 256, "osm/%i/%i_%i.pak", zoom, x, y);
+		pak_file_t* pak = pak_file_open(fname, PAK_FLAG_WRITE);
+		if(pak == NULL)
+		{
+			continue;
+		}
+
 		int i;
 		int j;
-		texgz_mtex_t* mtex = NULL;
-		char fname[256];
 		for(i = 0; i < 8; ++i)
 		{
 			for(j = 0; j < 8; ++j)
@@ -84,7 +106,6 @@ int main(int argc, char** argv)
 				int yi = 8*y + i;
 
 				snprintf(fname, 256, "localhost/osm/%i/%i/%i.png", zoom, xj, yi);
-
 				texgz_tex_t* tex = texgz_png_import(fname);
 				if(tex == NULL)
 				{
@@ -99,47 +120,15 @@ int main(int argc, char** argv)
 					continue;
 				}
 
-				if(mtex)
-				{
-					if(texgz_mtex_join(mtex, j, i, tex) == 0)
-					{
-						texgz_tex_delete(&tex);
-					}
-				}
-				else
-				{
-					mtex = texgz_mtex_new(j, i, tex);
-					if(mtex == NULL)
-					{
-						texgz_tex_delete(&tex);
-					}
-				}
+				// j=dx, i=dy
+				snprintf(fname, 256, "%i_%i", j, i);
+				pak_file_writek(pak, fname);
+				texgz_tex_exportf(tex, pak->f);
+				texgz_tex_delete(&tex);
 			}
 		}
 
-		// create directories if necessary
-		int  has_dir = 1;
-		char dname[256];
-		snprintf(dname, 256, "mtex/%i", zoom);
-		if(mkdir(dname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
-		{
-			if(errno == EEXIST)
-			{
-				// already exists
-			}
-			else
-			{
-				LOGE("mkdir %s failed", dname);
-				has_dir = 0;
-			}
-		}
-
-		if(has_dir && mtex)
-		{
-			snprintf(fname, 256, "mtex/%i/%i_%i.mtex", zoom, x, y);
-			texgz_mtex_export(mtex, fname);
-		}
-		texgz_mtex_delete(&mtex);
+		pak_file_close(&pak);
 	}
 	free(line);
 

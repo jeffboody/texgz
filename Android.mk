@@ -8,10 +8,7 @@ LOCAL_LDLIBS    := -Llibs/armeabi \
                    -llog -lz
 
 ifeq ($(TEXGZ_USE_JPEG),TRUE)
-	LOCAL_SRC_FILES := $(LOCAL_SRC_FILES) texgz/texgz_mgm.c texgz/texgz_jpeg.c
-endif
-
-ifeq ($(TEXGZ_USE_JPEG),TRUE)
+	LOCAL_SRC_FILES        := $(LOCAL_SRC_FILES) texgz/texgz_jpeg.c
 	LOCAL_SHARED_LIBRARIES := libmyjpeg
 endif
 

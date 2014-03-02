@@ -24,14 +24,6 @@ For convenience the texgz library can also import/export these file types.
 
 * jpg
 * png
-* mtex
-* mgm (import subtile only)
-
-The mgm file type is used in mapping software such as MyTrails. These mgm
-filenames are based on an ingenious transformation invented by Google which
-describes the Earth's surface as a square. An example describing how
-to perform this translation from a latitude/longitude pair is shown in the
-mgm/example.lua script.
 
 texgz-convert
 =============
@@ -39,12 +31,12 @@ texgz-convert
 A conversion utility that also serves as an example for using the
 texgz library.
 
-osm2mtex
-========
+osm2pak
+=======
 
 Convert png images exported by OSM in the directory layout
 localhost/osm/zoom/xj/yi.png to the directory layout
-mtex/zoom/x_y.mtex as RGBA-4444 mtex images.
+osm/zoom/x_y.pak as RGBA-4444 texgz images.
 
 example using texgz as a texture in OpenGL ES
 =============================================
