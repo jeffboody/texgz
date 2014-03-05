@@ -25,10 +25,8 @@
 #include <assert.h>
 #include <string.h>
 #include <texgz/texgz_tex.h>
-#include <texgz/texgz_mtex.h>
 #include <texgz/texgz_jpeg.h>
 #include <texgz/texgz_png.h>
-#include <texgz/texgz_mgm.h>
 
 #define LOG_TAG "texgz"
 #include <texgz/texgz_log.h>
@@ -54,9 +52,7 @@ static int check_ext(const char* fname, const char* ext)
 
 static void usage(const char* argv0)
 {
-	LOGE("usage1: %s [format] [src] [dst]", argv0);
-	LOGE("usage2: %s [format] [dx] [dy] [src.mgm] [dst]", argv0);
-	LOGE("usage3: %s [format] [dx] [dy] [src.mtex] [dst]", argv0);
+	LOGE("usage: %s [format] [src] [dst]", argv0);
 	LOGE("RGBA-8888   - texgz, png");
 	LOGE("BGRA-8888   - texgz");
 	LOGE("RGB-565     - texgz");
@@ -70,34 +66,15 @@ static void usage(const char* argv0)
 
 int main(int argc, char** argv)
 {
-	unsigned char dx = 0;
-	unsigned char dy = 0;
-
 	const char* arg_format = NULL;
 	const char* arg_src    = NULL;
 	const char* arg_dst    = NULL;
 
-	if(argc == 6)
-	{
-		dx = (unsigned char) strtoul(argv[2], (char**) NULL, 10);
-		dy = (unsigned char) strtoul(argv[3], (char**) NULL, 10);
-
-		arg_format = argv[1];
-		arg_src    = argv[4];
-		arg_dst    = argv[5];
-	}
-	else if(argc == 4)
+	if(argc == 4)
 	{
 		arg_format = argv[1];
 		arg_src    = argv[2];
 		arg_dst    = argv[3];
-
-		if(check_ext(arg_src, "mgm") ||
-		   check_ext(arg_src, "mtex"))
-		{
-			usage(argv[0]);
-			return EXIT_FAILURE;
-		}
 	}
 	else
 	{
@@ -172,14 +149,6 @@ int main(int argc, char** argv)
 	else if(check_ext(arg_src, "png"))
 	{
 		tex = texgz_png_import(arg_src);
-	}
-	else if(check_ext(arg_src, "mgm"))
-	{
-		tex = texgz_mgm_import(arg_src, dx, dy);
-	}
-	else if(check_ext(arg_src, "mtex"))
-	{
-		tex = texgz_mtex_importxy(arg_src, dx, dy);
 	}
 	else
 	{
