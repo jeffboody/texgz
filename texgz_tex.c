@@ -1152,7 +1152,7 @@ int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
 {
 	assert(self);
 	assert(f);
-	LOGD("debug")
+	LOGD("debug");
 
 	int bytes = texgz_tex_size(self);
 	if(bytes == 0)
