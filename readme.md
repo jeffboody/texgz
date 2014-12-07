@@ -90,6 +90,7 @@ install the Gimp plugin
 	# requires libgimp2.0-dev
 	sudo apt-get install libgimp2.0-dev
 
+	export LIBS=-lz
 	./build-plugin.sh
 
 license

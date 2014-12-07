@@ -22,6 +22,7 @@
  */
 
 #include "texgz_tex.c"
+#include "texgz_log.c"
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
