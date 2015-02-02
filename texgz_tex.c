@@ -898,7 +898,7 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 	gzFile f = gzopen(filename, "rb");
 	if(!f)
 	{
-		LOGE("gzopen failed");
+		LOGE("gzopen failed filename=%s", filename);
 		return NULL;
 	}
 
