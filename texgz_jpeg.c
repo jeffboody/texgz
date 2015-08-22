@@ -22,8 +22,8 @@
  */
 
 #include <stdio.h>
-#ifdef ANDROID
-	#include "jpeg/jpeglib.h"
+#if defined(ANDROID) || defined(__APPLE__)
+	#include "../jpeg/jpeglib.h"
 #else
 	#include <jpeglib.h>
 #endif
