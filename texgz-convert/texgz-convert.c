@@ -53,15 +53,15 @@ static int check_ext(const char* fname, const char* ext)
 static void usage(const char* argv0)
 {
 	LOGE("usage: %s [format] [src] [dst]", argv0);
-	LOGE("RGBA-8888   - texgz, png");
-	LOGE("BGRA-8888   - texgz");
-	LOGE("RGB-565     - texgz");
-	LOGE("RGBA-4444   - texgz");
-	LOGE("RGB-888     - texgz, png, jpg");
-	LOGE("RGBA-5551   - texgz");
-	LOGE("LUMINANCE   - texgz");
-	LOGE("LUMINANCE-A - texgz");
-	LOGE("LUMINANCE-F - texgz");
+	LOGE("RGBA-8888   - texgz, texz, png");
+	LOGE("BGRA-8888   - texgz, texz");
+	LOGE("RGB-565     - texgz, texz");
+	LOGE("RGBA-4444   - texgz, texz");
+	LOGE("RGB-888     - texgz, texz, png, jpg");
+	LOGE("RGBA-5551   - texgz, texz");
+	LOGE("LUMINANCE   - texgz, texz");
+	LOGE("LUMINANCE-A - texgz, texz");
+	LOGE("LUMINANCE-F - texgz, texz");
 }
 
 int main(int argc, char** argv)
@@ -142,6 +142,10 @@ int main(int argc, char** argv)
 	{
 		tex = texgz_tex_import(arg_src);
 	}
+	else if(check_ext(arg_src, "texz"))
+	{
+		tex = texgz_tex_importz(arg_src);
+	}
 	else if(check_ext(arg_src, "jpg"))
 	{
 		tex = texgz_jpeg_import(arg_src);
@@ -172,6 +176,10 @@ int main(int argc, char** argv)
 	if(check_ext(arg_dst, "texgz"))
 	{
 		ret = texgz_tex_export(tex, arg_dst);
+	}
+	else if(check_ext(arg_dst, "texz"))
+	{
+		ret = texgz_tex_exportz(tex, arg_dst);
 	}
 	else if(check_ext(arg_dst, "jpg"))
 	{

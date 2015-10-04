@@ -961,6 +961,28 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 	return NULL;
 }
 
+texgz_tex_t* texgz_tex_importz(const char* filename)
+{
+	assert(filename);
+	LOGD("debug filename=%s", filename);
+
+	FILE* f = fopen(filename, "r");
+	if(f == NULL)
+	{
+		LOGE("invalid filename=%s", filename);
+		return NULL;
+	}
+
+	// determine the file size
+	fseek(f, (long) 0, SEEK_END);
+	int fsize = (int) ftell(f);
+	rewind(f);
+
+	texgz_tex_t* tex = texgz_tex_importf(f, fsize);
+	fclose(f);
+	return tex;
+}
+
 texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 {
 	assert(f);
@@ -1146,6 +1168,23 @@ int texgz_tex_export(texgz_tex_t* self, const char* filename)
 	fail_header:
 		gzclose(f);
 	return 0;
+}
+
+int texgz_tex_exportz(texgz_tex_t* self, const char* filename)
+{
+	assert(filename);
+	LOGD("debug filename=%s", filename);
+
+	FILE* f = fopen(filename, "w");
+	if(f == NULL)
+	{
+		LOGE("invalid filename=%s", filename);
+		return 0;
+	}
+
+	int ret = texgz_tex_exportf(self, f);
+	fclose(f);
+	return ret;
 }
 
 int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
