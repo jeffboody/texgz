@@ -23,15 +23,39 @@
 
 #include "texgz_tex.c"
 #include "texgz_log.c"
+#include <string.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
+
+static int texgz_isTexz(const gchar *filename)
+{
+	assert(filename);
+	LOGD("debug filename=%s", filename);
+
+	if(strstr(filename, ".texz"))
+	{
+		return 1;
+	}
+
+	return 0;
+}
 
 static gint32 texgz_import(const gchar *filename)
 {
 	assert(filename);
 	LOGD("debug filename=%s", filename);
 
-	texgz_tex_t* tex = texgz_tex_import(filename);
+	int is_texz = texgz_isTexz(filename);
+
+	texgz_tex_t* tex;
+	if(is_texz)
+	{
+		tex = texgz_tex_importz(filename);
+	}
+	else
+	{
+		tex = texgz_tex_import(filename);
+	}
 	if(tex == NULL)
 		return -1;
 
@@ -54,8 +78,21 @@ static gint32 texgz_import(const gchar *filename)
 		goto fail_gimp_image_set_filename;
 	}
 
-	gint32 layer_ID = gimp_layer_new(image_ID, "texgz", tex->stride, tex->vstride,
-	                                 GIMP_RGBA_IMAGE, 100, GIMP_NORMAL_MODE);
+	gint32 layer_ID;
+	if(is_texz)
+	{
+		layer_ID = gimp_layer_new(image_ID, "texz",
+		                          tex->stride, tex->vstride,
+		                          GIMP_RGBA_IMAGE, 100,
+		                          GIMP_NORMAL_MODE);
+	}
+	else
+	{
+		layer_ID = gimp_layer_new(image_ID, "texgz",
+		                          tex->stride, tex->vstride,
+		                          GIMP_RGBA_IMAGE, 100,
+		                          GIMP_NORMAL_MODE);
+	}
 	if(layer_ID == -1)
 	{
 		LOGE("gimp_layer_new failed");
@@ -121,21 +158,38 @@ typedef struct
 	gint pad;
 } texgz_dialog_t;
 
-static gint texgz_export_dialog(texgz_dialog_t* self)
+static gint texgz_export_dialog(texgz_dialog_t* self, int is_texz)
 {
 	assert(self);
 	LOGD("debug");
 
-	GtkWidget* dialog = gimp_dialog_new("Save as texgz",
-	                                    "texgz-export",
-	                                    NULL, 0,
-	                                    NULL,
-	                                    NULL,
-	                                    GTK_STOCK_CANCEL,
-	                                    GTK_RESPONSE_CANCEL,
-	                                    GTK_STOCK_SAVE,
-	                                    GTK_RESPONSE_OK,
-	                                    NULL);
+	GtkWidget* dialog;
+	if(is_texz)
+	{
+		dialog = gimp_dialog_new("Save as texz",
+		                         "texgz-export",
+		                         NULL, 0,
+		                         NULL,
+		                         NULL,
+		                         GTK_STOCK_CANCEL,
+		                         GTK_RESPONSE_CANCEL,
+		                         GTK_STOCK_SAVE,
+		                         GTK_RESPONSE_OK,
+		                         NULL);
+	}
+	else
+	{
+		dialog = gimp_dialog_new("Save as texgz",
+		                         "texgz-export",
+		                         NULL, 0,
+		                         NULL,
+		                         NULL,
+		                         GTK_STOCK_CANCEL,
+		                         GTK_RESPONSE_CANCEL,
+		                         GTK_STOCK_SAVE,
+		                         GTK_RESPONSE_OK,
+		                         NULL);
+	}
 	if(dialog == NULL)
 	{
 		LOGE("gimp_dialog_new failed");
@@ -305,8 +359,17 @@ static int texgz_export(const gchar*    filename,
 	if(texgz_tex_convert(tex, type, format) == 0)
 		goto fail_texgz_tex_convert;
 
-	if(texgz_tex_export(tex, filename) == 0)
-		goto fail_texgz_tex_export;
+	int is_texz = texgz_isTexz(filename);
+	if(is_texz)
+	{
+		if(texgz_tex_exportz(tex, filename) == 0)
+			goto fail_texgz_tex_export;
+	}
+	else
+	{
+		if(texgz_tex_export(tex, filename) == 0)
+			goto fail_texgz_tex_export;
+	}
 
 	texgz_tex_delete(&tex);
 	gimp_drawable_detach(drawable);
@@ -350,9 +413,23 @@ static void query(void)
 
 	LOGD("debug");
 
+	gimp_install_procedure("texz-import",
+	                       "https://github.com/jeffboody/texgz",
+	                       "Loads texz images",
+	                       "Jeff Boody",
+	                       "Copyright (c) 2011 Jeff Boody",
+	                       "2011",
+	                       "texz image",
+	                       NULL,
+	                       GIMP_PLUGIN,
+	                       G_N_ELEMENTS(s_params_load),
+	                       G_N_ELEMENTS(s_return_vals),
+	                       s_params_load,
+	                       s_return_vals);
+
 	gimp_install_procedure("texgz-import",
 	                       "https://github.com/jeffboody/texgz",
-	                       "Loads texgz images",
+	                       "Loads texz/texgz images",
 	                       "Jeff Boody",
 	                       "Copyright (c) 2011 Jeff Boody",
 	                       "2011",
@@ -364,9 +441,23 @@ static void query(void)
 	                       s_params_load,
 	                       s_return_vals);
 
+	gimp_install_procedure("texz-export",
+	                       "https://github.com/jeffboody/texgz",
+	                       "Saves texz/texgz images",
+	                       "Jeff Boody",
+	                       "Copyright (c) 2011 Jeff Boody",
+	                       "2011",
+	                       "texz image",
+	                       "RGBA",
+	                       GIMP_PLUGIN,
+	                       G_N_ELEMENTS(s_params_save),
+	                       0,
+	                       s_params_save,
+	                       NULL);
+
 	gimp_install_procedure("texgz-export",
 	                       "https://github.com/jeffboody/texgz",
-	                       "Saves texgz images",
+	                       "Saves texz/texgz images",
 	                       "Jeff Boody",
 	                       "Copyright (c) 2011 Jeff Boody",
 	                       "2011",
@@ -377,6 +468,11 @@ static void query(void)
 	                       0,
 	                       s_params_save,
 	                       NULL);
+
+	gimp_register_file_handler_mime("texz-import", "image/texz");
+	gimp_register_file_handler_mime("texz-export", "image/texz");
+	gimp_register_load_handler("texz-import", "texz", "");
+	gimp_register_save_handler("texz-export", "texz", "");
 
 	gimp_register_file_handler_mime("texgz-import", "image/texgz");
 	gimp_register_file_handler_mime("texgz-export", "image/texgz");
@@ -393,6 +489,7 @@ static void run(const gchar *name,
 	static GimpParam   s_return_vals[2];
 	gint32             image_ID;
 	gint32             drawable_ID;
+	const gchar*       filename;
 	GimpRunMode        run_mode = param[0].data.d_int32;
 
 	assert(name);
@@ -406,7 +503,8 @@ static void run(const gchar *name,
 	s_return_vals[0].type          = GIMP_PDB_STATUS;
 	s_return_vals[0].data.d_status = GIMP_PDB_EXECUTION_ERROR;
 
-	if(strcmp(name, "texgz-import") == 0)
+	if((strcmp(name, "texz-import") == 0) ||
+	   (strcmp(name, "texgz-import") == 0))
 	{
 		image_ID = texgz_import(param[1].data.d_string);
 		if(image_ID == -1)
@@ -420,23 +518,45 @@ static void run(const gchar *name,
 		s_return_vals[1].type = GIMP_PDB_IMAGE;
 		s_return_vals[1].data.d_image = image_ID;
 	}
-	else if(strcmp(name, "texgz-export") == 0)
+	else if((strcmp(name, "texz-export") == 0) ||
+	        (strcmp(name, "texgz-export") == 0))
 	{
 		image_ID    = param[1].data.d_int32;
 		drawable_ID = param[2].data.d_int32;
+		filename    = param[3].data.d_string;
+
+		int is_texz = texgz_isTexz(filename);
 		if(run_mode == GIMP_RUN_INTERACTIVE)
 		{
-			gimp_ui_init("texgz-export", FALSE);
-			if(gimp_export_image(&image_ID,
-			                     &drawable_ID,
-			                     "texgz",
-			                     GIMP_EXPORT_CAN_HANDLE_RGB |
-			                     GIMP_EXPORT_NEEDS_ALPHA
-			                    ) == GIMP_EXPORT_CANCEL)
+			if(is_texz)
 			{
-				LOGE("gimp_export_image failed");
-				s_return_vals[0].data.d_status = GIMP_PDB_CANCEL;
-				return;
+				gimp_ui_init("texz-export", FALSE);
+				if(gimp_export_image(&image_ID,
+				                     &drawable_ID,
+				                     "texz",
+				                     GIMP_EXPORT_CAN_HANDLE_RGB |
+				                     GIMP_EXPORT_NEEDS_ALPHA
+				                    ) == GIMP_EXPORT_CANCEL)
+				{
+					LOGE("gimp_export_image failed");
+					s_return_vals[0].data.d_status = GIMP_PDB_CANCEL;
+					return;
+				}
+			}
+			else
+			{
+				gimp_ui_init("texgz-export", FALSE);
+				if(gimp_export_image(&image_ID,
+				                     &drawable_ID,
+				                     "texgz",
+				                     GIMP_EXPORT_CAN_HANDLE_RGB |
+				                     GIMP_EXPORT_NEEDS_ALPHA
+				                    ) == GIMP_EXPORT_CANCEL)
+				{
+					LOGE("gimp_export_image failed");
+					s_return_vals[0].data.d_status = GIMP_PDB_CANCEL;
+					return;
+				}
 			}
 
 			texgz_dialog_t dialog =
@@ -444,7 +564,7 @@ static void run(const gchar *name,
 				.format = 8888,
 				.pad    = 0,
 			};
-			if(texgz_export_dialog(&dialog) == 0)
+			if(texgz_export_dialog(&dialog, is_texz) == 0)
 			{
 				LOGE("texgz_export_dialog failed");
 				s_return_vals[0].data.d_status = GIMP_PDB_CANCEL;
@@ -452,7 +572,7 @@ static void run(const gchar *name,
 				return;
 			}
 
-			if(texgz_export(param[3].data.d_string, image_ID, drawable_ID, &dialog) == 0)
+			if(texgz_export(filename, image_ID, drawable_ID, &dialog) == 0)
 			{
 				LOGE("texgz_export failed");
 				s_return_vals[0].data.d_status = GIMP_PDB_EXECUTION_ERROR;

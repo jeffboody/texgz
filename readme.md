@@ -15,6 +15,14 @@ compression. The following formats are supported by texgz:
 * Luminance
 * Luminance-Float
 
+The texz format may be uncompressed in memory while the
+texgz format may be uncompressed from a file. The texz
+format is useful when embedding the image in an archive or
+when the image does not need to be saved to disk. There is
+a slight difference in texz vs texgz data because libz
+compresses data in memory differently from when written to
+a file.
+
 Send questions or comments to Jeff Boody - jeffboody@gmail.com
 
 additional file types
@@ -90,7 +98,6 @@ install the Gimp plugin
 	# requires libgimp2.0-dev
 	sudo apt-get install libgimp2.0-dev
 
-	export LIBS=-lz
 	./build-plugin.sh
 
 license
