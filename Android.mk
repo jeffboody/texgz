@@ -12,4 +12,9 @@ ifeq ($(TEXGZ_USE_JPEG),TRUE)
 	LOCAL_SHARED_LIBRARIES := libmyjpeg
 endif
 
+ifeq ($(TEXGZ_USE_PNG),TRUE)
+	LOCAL_SRC_FILES := $(LOCAL_SRC_FILES) texgz/texgz_lodepng.c
+	LOCAL_SRC_FILES := $(LOCAL_SRC_FILES) lodepng/lodepng.c
+endif
+
 include $(BUILD_SHARED_LIBRARY)
