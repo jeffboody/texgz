@@ -27,6 +27,11 @@
 #include <texgz/texgz_tex.h>
 #include <texgz/texgz_jpeg.h>
 #include <texgz/texgz_png.h>
+#ifdef TEXGZ_USE_JP2
+	// To enable JP2 support
+	// TEXGZ_USE_JP2=1 make
+	#include <texgz/texgz_jp2.h>
+#endif
 
 #define LOG_TAG "texgz"
 #include <texgz/texgz_log.h>
@@ -154,6 +159,12 @@ int main(int argc, char** argv)
 	{
 		tex = texgz_png_import(arg_src);
 	}
+	#ifdef TEXGZ_USE_JP2
+		else if(check_ext(arg_src, "jp2"))
+		{
+			tex = texgz_jp2_import(arg_src);
+		}
+	#endif
 	else
 	{
 		LOGE("invalid src=%s", arg_src);
