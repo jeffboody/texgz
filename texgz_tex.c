@@ -1664,6 +1664,76 @@ texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self)
 	return tex;
 }
 
+void texgz_tex_sample(texgz_tex_t* self,
+                      float u, float v,
+                      int bpp, unsigned char* pixel)
+{
+	assert(self);
+	assert(pixel);
+	assert(self->type == TEXGZ_UNSIGNED_BYTE);
+
+	// skip expensive assert
+	// assert(bpp == texgz_tex_bpp(self));
+
+	// "float indices"
+	float pu = u*(self->width  - 1);
+	float pv = v*(self->height - 1);
+
+	// determine indices to sample
+	int u0 = (int) pu;
+	int v0 = (int) pv;
+	int u1 = u0 + 1;
+	int v1 = v0 + 1;
+
+	// double check the indices
+	if(u0 < 0)
+	{
+		u0 = 0;
+	}
+	if(u1 >= self->width)
+	{
+		u1 = self->width - 1;
+	}
+	if(v0 < 0)
+	{
+		v0 = 0;
+	}
+	if(v1 >= self->height)
+	{
+		v1 = self->height - 1;
+	}
+
+	// compute interpolation coordinates
+	float u0f = (float) u0;
+	float v0f = (float) v0;
+	float uf  = pu - u0f;
+	float vf  = pv - v0f;
+
+	// sample interpolation values
+	int i;
+	unsigned char* pixels   = self->pixels;
+	int            offset00 = bpp*(v0*self->stride + u0);
+	int            offset01 = bpp*(v0*self->stride + u1);
+	int            offset10 = bpp*(v1*self->stride + u0);
+	int            offset11 = bpp*(v1*self->stride + u1);
+	for(i = 0; i < bpp; ++i)
+	{
+		// convert component to float
+		float f00 = (float) pixels[offset00 + i];
+		float f01 = (float) pixels[offset01 + i];
+		float f10 = (float) pixels[offset10 + i];
+		float f11 = (float) pixels[offset11 + i];
+
+		// interpolate u
+		float f0010 = f00 + uf*(f10 - f00);
+		float f0111 = f01 + uf*(f11 - f01);
+
+		// interpolate v
+		pixel[i] = (unsigned char)
+		           (f0010 + vf*(f0111 - f0010) + 0.5f);
+	}
+}
+
 int texgz_tex_bpp(texgz_tex_t* self)
 {
 	assert(self);

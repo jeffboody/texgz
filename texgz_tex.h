@@ -76,6 +76,9 @@ int          texgz_tex_crop(texgz_tex_t* self, int top, int left, int bottom, in
 texgz_tex_t* texgz_tex_cropcopy(texgz_tex_t* self, int top, int left, int bottom, int right);
 int          texgz_tex_pad(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self);
+void         texgz_tex_sample(texgz_tex_t* self,
+                              float u, float v,
+                              int bpp, unsigned char* pixel);
 int          texgz_tex_bpp(texgz_tex_t* self);
 int          texgz_tex_size(texgz_tex_t* self);
 
