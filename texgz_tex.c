@@ -889,6 +889,135 @@ texgz_tex_t* texgz_tex_copy(texgz_tex_t* self)
                          self->pixels);
 }
 
+texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
+{
+	assert(self);
+
+	// only support even/one w/h textures
+	int w = self->width;
+	int h = self->height;
+	if(((w == 1) || (w%2 == 0)) &&
+	   ((h == 1) || (h%2 == 0)))
+	{
+		// continue
+	}
+	else
+	{
+		LOGE("invalid w=%i, h=%i", w, h);
+		return NULL;
+	}
+
+	// only support unsigned bytes
+	if(self->type != TEXGZ_UNSIGNED_BYTE)
+	{
+		LOGE("invalid type=0x%X", self->type);
+		return NULL;
+	}
+
+	// handle 1x1 special case
+	if((w == 1) && (h == 1))
+	{
+		return texgz_tex_copy(self);
+	}
+
+	// create downscale texture
+	w = (w == 1) ? 1 : w/2;
+	h = (h == 1) ? 1 : h/2;
+	texgz_tex_t* down = texgz_tex_new(w, h, w, h,
+	                                  self->type, self->format,
+	                                  NULL);
+	if(down == NULL)
+	{
+		return NULL;
+	}
+
+	// downscale with box filter
+	int   i;
+	int   x;
+	int   y;
+	float p00;
+	float p01;
+	float p10;
+	float p11;
+	float avg;
+	int   bpp        = texgz_tex_bpp(self);
+	int   bpp2       = 2*bpp;
+	int   src_step   = bpp*self->stride;
+	int   dst_step   = bpp*down->stride;
+	int   src_offset00;
+	int   src_offset01;
+	int   src_offset10;
+	int   src_offset11;
+	int   dst_offset;
+	unsigned char* src_pixels = self->pixels;
+	unsigned char* dst_pixels = down->pixels;
+	if(self->width == 1)
+	{
+		for(y = 0; y < self->height; y += 2)
+		{
+			src_offset00 = y*src_step;
+			src_offset10 = src_offset00 + src_step;
+			dst_offset   = (y/2)*dst_step;
+			for(i = 0; i < bpp; ++i)
+			{
+				p00 = (float) src_pixels[src_offset00 + i];
+				p10 = (float) src_pixels[src_offset10 + i];
+				avg = (p00 + p10)/2.0f;
+				dst_pixels[dst_offset + i] = (unsigned char) avg;
+			}
+		}
+	}
+	else if(self->height == 1)
+	{
+		src_offset00 = 0;
+		src_offset01 = bpp;
+		dst_offset   = 0;
+		for(x = 0; x < self->width; x += 2)
+		{
+			for(i = 0; i < bpp; ++i)
+			{
+				p00 = (float) src_pixels[src_offset00 + i];
+				p01 = (float) src_pixels[src_offset01 + i];
+				avg = (p00 + p01)/2.0f;
+				dst_pixels[dst_offset + i] = (unsigned char) avg;
+			}
+			src_offset00 += bpp2;
+			src_offset01 += bpp2;
+			dst_offset   += bpp;
+		}
+	}
+	else
+	{
+		for(y = 0; y < self->height; y += 2)
+		{
+			src_offset00 = y*src_step;
+			src_offset01 = src_offset00 + bpp;
+			src_offset10 = src_offset00 + src_step;
+			src_offset11 = src_offset10 + bpp;
+			dst_offset   = (y/2)*dst_step;
+			for(x = 0; x < self->width; x += 2)
+			{
+				for(i = 0; i < bpp; ++i)
+				{
+					p00 = (float) src_pixels[src_offset00 + i];
+					p01 = (float) src_pixels[src_offset01 + i];
+					p10 = (float) src_pixels[src_offset10 + i];
+					p11 = (float) src_pixels[src_offset11 + i];
+					avg = (p00 + p01 + p10 + p11)/4.0f;
+					dst_pixels[dst_offset + i] = (unsigned char) avg;
+				}
+				src_offset00 += bpp2;
+				src_offset01 += bpp2;
+				src_offset10 += bpp2;
+				src_offset11 += bpp2;
+				dst_offset   += bpp;
+			}
+		}
+	}
+
+	return down;
+}
+
 texgz_tex_t* texgz_tex_import(const char* filename)
 {
 	assert(filename);
