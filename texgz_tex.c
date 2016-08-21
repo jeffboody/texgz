@@ -1664,6 +1664,47 @@ texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self)
 	return tex;
 }
 
+int texgz_tex_blit(texgz_tex_t* src, texgz_tex_t* dst,
+                   int width, int height,
+                   int xs, int ys, int xd, int yd)
+{
+	assert(src);
+	assert(dst);
+
+	if((src->type != dst->type) ||
+	   (src->format != dst->format))
+	{
+		LOGE("invalid src: type=0x%X, format=0x%X, dst: type=0x%x, format=0x%X",
+		     src->type, src->format, dst->type, dst->format);
+		return 0;
+	}
+
+	if((width <= 0) || (height <= 0) ||
+	   (xs + width > src->width) || (ys + height > src->height) ||
+	   (xd + width > dst->width) || (yd + height > dst->height))
+	{
+		LOGE("invalid width=%i, height=%i, xs=%i, ys=%i, xd=%i, yd=%i",
+		     width, height, xs, ys, xd, yd);
+		return 0;
+	}
+
+	// blit
+	int i;
+	int bpp   = texgz_tex_bpp(src);
+	int bytes = width*bpp;
+	for(i = 0; i < height; ++i)
+	{
+		int os = bpp*((ys + i)*src->stride + xs);
+		int od = bpp*((yd + i)*dst->stride + xd);
+		unsigned char* ps = &src->pixels[os];
+		unsigned char* pd = &src->pixels[od];
+
+		memcpy((void*) pd, (void*) ps, bytes);
+	}
+
+	return 1;
+}
+
 void texgz_tex_sample(texgz_tex_t* self,
                       float u, float v,
                       int bpp, unsigned char* pixel)
