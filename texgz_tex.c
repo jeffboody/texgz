@@ -1697,7 +1697,7 @@ int texgz_tex_blit(texgz_tex_t* src, texgz_tex_t* dst,
 		int os = bpp*((ys + i)*src->stride + xs);
 		int od = bpp*((yd + i)*dst->stride + xd);
 		unsigned char* ps = &src->pixels[os];
-		unsigned char* pd = &src->pixels[od];
+		unsigned char* pd = &dst->pixels[od];
 
 		memcpy((void*) pd, (void*) ps, bytes);
 	}
