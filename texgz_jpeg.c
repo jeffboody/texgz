@@ -186,6 +186,7 @@ int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 	jpeg_finish_compress(&cinfo);
 	jpeg_destroy_compress(&cinfo);
 	fclose(f);
+	texgz_tex_delete(&copy);
 
 	// sucess
 	return 1;
