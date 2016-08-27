@@ -142,14 +142,24 @@ int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 	LOGD("debug fname=%s", fname);
 
 	// convert to RGB888 and crop
-	texgz_tex_t* copy = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB);
-	if(copy == NULL)
+	int delete_tex = 0;
+	texgz_tex_t* tex = self;
+	if((tex->type   != TEXGZ_UNSIGNED_BYTE) ||
+	   (tex->format != TEXGZ_RGB)           ||
+	   (tex->width  != tex->stride)         ||
+	   (tex->height != tex->vstride))
 	{
-		return 0;
-	}
-	if(texgz_tex_crop(copy, 0, 0, copy->height - 1, copy->width - 1) == 0)
-	{
-		goto fail_copy;
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB);
+		if(tex == NULL)
+		{
+			return 0;
+		}
+		delete_tex = 1;
+
+		if(texgz_tex_crop(tex, 0, 0, tex->height - 1, tex->width - 1) == 0)
+		{
+			goto fail_tex;
+		}
 	}
 
 	FILE* f = fopen(fname, "w");
@@ -165,14 +175,14 @@ int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 	jpeg_create_compress(&cinfo);
 	jpeg_stdio_dest(&cinfo, f);
 
-	cinfo.image_width      = copy->width;
-	cinfo.image_height     = copy->height;
+	cinfo.image_width      = tex->width;
+	cinfo.image_height     = tex->height;
 	cinfo.input_components = 3;
 	cinfo.in_color_space   = JCS_RGB;
 	jpeg_set_defaults(&cinfo);
 	jpeg_start_compress(&cinfo, TRUE);
 
-	unsigned char* pixels = copy->pixels;
+	unsigned char* pixels = tex->pixels;
 	int stride_bytes = cinfo.image_width*cinfo.num_components;
 	while(cinfo.next_scanline < cinfo.image_height)
 	{
@@ -186,7 +196,10 @@ int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 	jpeg_finish_compress(&cinfo);
 	jpeg_destroy_compress(&cinfo);
 	fclose(f);
-	texgz_tex_delete(&copy);
+	if(delete_tex)
+	{
+		texgz_tex_delete(&tex);
+	}
 
 	// sucess
 	return 1;
@@ -197,7 +210,10 @@ int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 		jpeg_destroy_compress(&cinfo);
 		fclose(f);
 	fail_open:
-	fail_copy:
-		texgz_tex_delete(&copy);
+	fail_tex:
+		if(delete_tex)
+		{
+			texgz_tex_delete(&tex);
+		}
 	return 0;
 }
