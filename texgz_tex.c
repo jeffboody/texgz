@@ -1731,6 +1731,14 @@ void texgz_tex_sample(texgz_tex_t* self,
 	{
 		u0 = 0;
 	}
+	if(u1 < 0)
+	{
+		u1 = 0;
+	}
+	if(u0 >= self->width)
+	{
+		u0 = self->width - 1;
+	}
 	if(u1 >= self->width)
 	{
 		u1 = self->width - 1;
@@ -1738,6 +1746,14 @@ void texgz_tex_sample(texgz_tex_t* self,
 	if(v0 < 0)
 	{
 		v0 = 0;
+	}
+	if(v1 < 0)
+	{
+		v1 = 0;
+	}
+	if(v0 >= self->height)
+	{
+		v0 = self->height - 1;
 	}
 	if(v1 >= self->height)
 	{
