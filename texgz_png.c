@@ -46,11 +46,32 @@ texgz_tex_t* texgz_png_import(const char* fname)
 		return NULL;
 	}
 
+	texgz_tex_t* tex = texgz_png_importf(f);
+	if(tex == NULL)
+	{
+		goto fail_importf;
+	}
+
+	fclose(f);
+
+	// success
+	return tex;
+
+	// failure
+	fail_importf:
+		fclose(f);
+	return NULL;
+}
+
+texgz_tex_t* texgz_png_importf(FILE* f)
+{
+	assert(f);
+
 	unsigned char sig[8];
 	if(fread(sig, 1, 8, f) != 8)
 	{
 		LOGE("fread failed");
-		goto fail_fread;
+		return NULL;
 	}
 
 	if(png_sig_cmp(sig, 0, 8))
@@ -175,7 +196,6 @@ texgz_tex_t* texgz_png_import(const char* fname)
 	}
 
 	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-	fclose(f);
 
 	// success
 	return tex;
@@ -191,8 +211,6 @@ texgz_tex_t* texgz_png_import(const char* fname)
 		png_destroy_read_struct(&png_ptr, info_ptr ? &info_ptr : NULL, NULL);
 	fail_read:
 	fail_sig:
-	fail_fread:
-		fclose(f);
 	return NULL;
 }
 
