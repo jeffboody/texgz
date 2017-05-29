@@ -907,28 +907,53 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 		return NULL;
 	}
 
-	// only support unsigned bytes
-	if(self->type != TEXGZ_UNSIGNED_BYTE)
-	{
-		LOGE("invalid type=0x%X", self->type);
-		return NULL;
-	}
-
 	// handle 1x1 special case
 	if((w == 1) && (h == 1))
 	{
 		return texgz_tex_copy(self);
 	}
 
+	// convert to unsigned bytes
+	int type = self->type;
+	texgz_tex_t* src;
+	if(type == TEXGZ_UNSIGNED_BYTE)
+	{
+		src = self;
+	}
+	else if((type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) ||
+	        (type == TEXGZ_UNSIGNED_SHORT_5_5_5_1))
+	{
+		src = texgz_tex_convertcopy(self,
+		                            TEXGZ_UNSIGNED_BYTE,
+		                            TEXGZ_RGBA);
+	}
+	else if(type == TEXGZ_UNSIGNED_SHORT_5_6_5)
+	{
+		src = texgz_tex_convertcopy(self,
+		                            TEXGZ_UNSIGNED_BYTE,
+		                            TEXGZ_RGB);
+	}
+	else
+	{
+		LOGE("invalid type=0x%X", type);
+		return NULL;
+	}
+
+	// check the conversion (if needed)
+	if(src == NULL)
+	{
+		return NULL;
+	}
+
 	// create downscale texture
 	w = (w == 1) ? 1 : w/2;
 	h = (h == 1) ? 1 : h/2;
 	texgz_tex_t* down = texgz_tex_new(w, h, w, h,
-	                                  self->type, self->format,
+	                                  src->type, src->format,
 	                                  NULL);
 	if(down == NULL)
 	{
-		return NULL;
+		goto fail_new;
 	}
 
 	// downscale with box filter
@@ -940,20 +965,20 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 	float p10;
 	float p11;
 	float avg;
-	int   bpp        = texgz_tex_bpp(self);
+	int   bpp        = texgz_tex_bpp(src);
 	int   bpp2       = 2*bpp;
-	int   src_step   = bpp*self->stride;
+	int   src_step   = bpp*src->stride;
 	int   dst_step   = bpp*down->stride;
 	int   src_offset00;
 	int   src_offset01;
 	int   src_offset10;
 	int   src_offset11;
 	int   dst_offset;
-	unsigned char* src_pixels = self->pixels;
+	unsigned char* src_pixels = src->pixels;
 	unsigned char* dst_pixels = down->pixels;
-	if(self->width == 1)
+	if(src->width == 1)
 	{
-		for(y = 0; y < self->height; y += 2)
+		for(y = 0; y < src->height; y += 2)
 		{
 			src_offset00 = y*src_step;
 			src_offset10 = src_offset00 + src_step;
@@ -967,12 +992,12 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 			}
 		}
 	}
-	else if(self->height == 1)
+	else if(src->height == 1)
 	{
 		src_offset00 = 0;
 		src_offset01 = bpp;
 		dst_offset   = 0;
-		for(x = 0; x < self->width; x += 2)
+		for(x = 0; x < src->width; x += 2)
 		{
 			for(i = 0; i < bpp; ++i)
 			{
@@ -988,14 +1013,14 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 	}
 	else
 	{
-		for(y = 0; y < self->height; y += 2)
+		for(y = 0; y < src->height; y += 2)
 		{
 			src_offset00 = y*src_step;
 			src_offset01 = src_offset00 + bpp;
 			src_offset10 = src_offset00 + src_step;
 			src_offset11 = src_offset10 + bpp;
 			dst_offset   = (y/2)*dst_step;
-			for(x = 0; x < self->width; x += 2)
+			for(x = 0; x < src->width; x += 2)
 			{
 				for(i = 0; i < bpp; ++i)
 				{
@@ -1015,7 +1040,53 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 		}
 	}
 
+	// convert to input type
+	if(type == TEXGZ_UNSIGNED_SHORT_4_4_4_4)
+	{
+		if(texgz_tex_convert(down,
+		                     TEXGZ_UNSIGNED_SHORT_4_4_4_4,
+		                     TEXGZ_RGBA) == 0)
+		{
+			goto fail_convert;
+		}
+	}
+	else if(type == TEXGZ_UNSIGNED_SHORT_5_5_5_1)
+	{
+		if(texgz_tex_convert(down,
+		                     TEXGZ_UNSIGNED_SHORT_5_5_5_1,
+		                     TEXGZ_RGBA) == 0)
+		{
+			goto fail_convert;
+		}
+	}
+	else if(type == TEXGZ_UNSIGNED_SHORT_5_6_5)
+	{
+		if(texgz_tex_convert(down,
+		                     TEXGZ_UNSIGNED_SHORT_5_6_5,
+		                     TEXGZ_RGB) == 0)
+		{
+			goto fail_convert;
+		}
+	}
+
+	// delete the temporary texture
+	if(type != TEXGZ_UNSIGNED_BYTE)
+	{
+		texgz_tex_delete(&src);
+	}
+
+	// success
 	return down;
+
+	// failure
+	fail_convert:
+		texgz_tex_delete(&down);
+	fail_new:
+		if(type != TEXGZ_UNSIGNED_BYTE)
+		{
+			texgz_tex_delete(&src);
+		}
+	return NULL;
 }
 
 texgz_tex_t* texgz_tex_import(const char* filename)
