@@ -9,7 +9,7 @@ HFILES  = $(CLASSES:%=%.h)
 OPT     = -O2 -Wall
 CFLAGS  = $(OPT) -I.
 ifeq ($(TEXGZ_USE_JP2),1)
-	CFLAGS += -DTEXGZ_USE_JP2 -I/usr/local/include/openjpeg-2.1
+	CFLAGS += -DTEXGZ_USE_JP2 -I/usr/local/include/openjpeg-2.2
 endif
 AR      = ar
 
