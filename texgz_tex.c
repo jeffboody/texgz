@@ -1862,6 +1862,48 @@ void texgz_tex_sample(texgz_tex_t* self,
 	}
 }
 
+int texgz_tex_mipmap(texgz_tex_t* self,
+                     int miplevels,
+                     texgz_tex_t** mipmaps)
+{
+	assert(self);
+	assert(mipmaps);
+
+	// note that mipmaps[0] is self
+
+	// set mipmaps[l]
+	int l;
+	texgz_tex_t* mip = self;
+	texgz_tex_t* down;
+	for(l = 1; l < miplevels; ++l)
+	{
+		down = texgz_tex_downscale(mip);
+		if(down == NULL)
+		{
+			goto fail_downscale;
+		}
+		mipmaps[l] = down;
+		mip = down;
+	}
+
+	// set mipmaps[0]
+	mipmaps[0] = self;
+
+	// success
+	return 1;
+
+	// failure
+	fail_downscale:
+	{
+		int k;
+		for(k = 1; k < l; ++k)
+		{
+			texgz_tex_delete(&mipmaps[k]);
+		}
+	}
+	return 0;
+}
+
 int texgz_tex_bpp(texgz_tex_t* self)
 {
 	assert(self);
