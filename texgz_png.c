@@ -176,10 +176,17 @@ texgz_tex_t* texgz_png_importf(FILE* f)
 		                    TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
 		                    NULL);
 	}
+	else if(color_type == PNG_COLOR_TYPE_GRAY)
+	{
+		int stride = stride_bytes;
+		tex = texgz_tex_new((int) width, (int) height,
+		                    stride, (int) height,
+		                    TEXGZ_UNSIGNED_BYTE, TEXGZ_ALPHA,
+		                    NULL);
+	}
 	else
 	{
 		LOGE("invalid color_type=%i", color_type);
-		goto fail_color_type;
 	}
 
 	if(tex == NULL)
@@ -202,7 +209,6 @@ texgz_tex_t* texgz_png_importf(FILE* f)
 
 	// failure
 	fail_tex:
-	fail_color_type:
 	fail_stride:
 	fail_bit_depth:
 	fail_get_IHDR:
@@ -258,10 +264,24 @@ int texgz_png_export(texgz_tex_t* self, const char* fname)
 		color_type = PNG_COLOR_TYPE_RGB_ALPHA;
 		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA);
 	}
-	else
+	else if(self->format == TEXGZ_RGB)
 	{
 		color_type = PNG_COLOR_TYPE_RGB;
 		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB);
+	}
+	else if(self->format == TEXGZ_LUMINANCE)
+	{
+		color_type = PNG_COLOR_TYPE_GRAY;
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_LUMINANCE);
+	}
+	else if(self->format == TEXGZ_ALPHA)
+	{
+		color_type = PNG_COLOR_TYPE_GRAY;
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_ALPHA);
+	}
+	else
+	{
+		LOGE("invalid format=0x%X", self->format);
 	}
 
 	if(tex == NULL)
