@@ -38,6 +38,131 @@
 #define TEXGZ_UNROLL_EDGE3X3
 
 /*
+ * private - outline mask
+ * see outline-mask.xcf
+ */
+
+float TEXGZ_TEX_OUTLINE3[9] =
+{
+	0.5f, 1.0f, 0.5f,
+	1.0f, 1.0f, 1.0f,
+	0.5f, 1.0f, 0.5f,
+};
+
+float TEXGZ_TEX_OUTLINE5[25] =
+{
+	0.19f, 0.75f, 1.00f, 0.75f, 0.19f,
+	0.75f, 1.00f, 1.00f, 1.00f, 0.75f,
+	1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	0.75f, 1.00f, 1.00f, 1.00f, 0.75f,
+	0.19f, 0.75f, 1.00f, 0.75f, 0.19f,
+};
+
+float TEXGZ_TEX_OUTLINE7[49] =
+{
+	0.00f, 0.31f, 0.88f, 1.00f, 0.88f, 0.31f, 0.00f,
+	0.31f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.31f,
+	0.88f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.88f,
+	1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	0.88f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.88f,
+	0.31f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.31f,
+	0.00f, 0.31f, 0.88f, 1.00f, 0.88f, 0.31f, 0.00f,
+};
+
+float TEXGZ_TEX_OUTLINE9[81] =
+{
+	0.00f, 0.06f, 0.50f, 0.88f, 1.00f, 0.88f, 0.50f, 0.06f, 0.00f,
+	0.06f, 0.81f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.81f, 0.06f,
+	0.50f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.50f,
+	0.88f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.88f,
+	1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	0.88f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.88f,
+	0.50f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.50f,
+	0.06f, 0.81f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.81f, 0.06f,
+	0.00f, 0.06f, 0.50f, 0.88f, 1.00f, 0.88f, 0.50f, 0.06f, 0.00f,
+};
+
+float TEXGZ_TEX_OUTLINE11[121] =
+{
+	0.00f, 0.00f, 0.13f, 0.63f, 0.88f, 1.00f, 0.88f, 0.63f, 0.13f, 0.00f, 0.00f,
+	0.00f, 0.38f, 0.94f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.94f, 0.38f, 1.00f,
+	0.13f, 0.94f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.94f, 1.00f,
+	0.63f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	0.88f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	0.88f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	0.63f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f,
+	0.13f, 0.94f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.94f, 1.00f,
+	0.00f, 0.38f, 0.94f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.94f, 0.38f, 1.00f,
+	0.00f, 0.00f, 0.13f, 0.63f, 0.88f, 1.00f, 0.88f, 0.63f, 0.13f, 0.00f, 0.00f,
+};
+
+static void texgz_tex_sampleOutline(texgz_tex_t* self,
+                                    int i, int j,
+                                    float* mask,
+                                    int size)
+{
+	assert(self);
+	assert(mask);
+
+	// sample state
+	int           off = size/2;
+	float         max = 0.0f;
+	unsigned char val = 0;
+	float         o;
+	float         f;
+	unsigned char v;
+
+	// clip outline mask
+	int m0 = 0;
+	int m1 = size - 1;
+	int n0 = 0;
+	int n1 = size - 1;
+	int b  = self->height - 1;
+	int r  = self->width - 1;
+	if(i - off < 0)
+	{
+		m0 = off - i;
+	}
+	if(j - off < 0)
+	{
+		n0 = off - j;
+	}
+	if(i + off > b)
+	{
+		m1 = m1 - ((i + off) - b);
+	}
+	if(j + off > r)
+	{
+		n1 = n1 - ((j + off) - r);
+	}
+
+	// determine the max sample
+	int m;
+	int n;
+	int idx;
+	for(m = m0; m <= m1; ++m)
+	{
+		for(n = n0; n <= n1; ++n)
+		{
+			idx = 2*((i + m - off)*self->stride + (j + n - off));
+			o = mask[m*size + n];
+			v = self->pixels[idx];
+			f = o*((float) v);
+			if(f > max)
+			{
+				max = f;
+				val = v;
+			}
+		}
+	}
+
+	// store the outline sample
+	idx = 2*(i*self->stride + j);
+	self->pixels[idx + 1] = val;
+}
+
+/*
  * private - table conversion functions
  */
 
@@ -1838,6 +1963,97 @@ texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self)
 		memcpy(dst, src, bpp*tex->width);
 	}
 	return tex;
+}
+
+texgz_tex_t* texgz_tex_outline(texgz_tex_t* self, int size)
+{
+	assert(self);
+
+	// validate the outline circle
+	int    off     = size/2;
+	float* mask = NULL;
+	if(size == 3)
+	{
+		mask = TEXGZ_TEX_OUTLINE3;
+	}
+	else if(size == 5)
+	{
+		mask = TEXGZ_TEX_OUTLINE5;
+	}
+	else if(size == 7)
+	{
+		mask = TEXGZ_TEX_OUTLINE7;
+	}
+	else if(size == 9)
+	{
+		mask = TEXGZ_TEX_OUTLINE9;
+	}
+	else if(size == 11)
+	{
+		mask = TEXGZ_TEX_OUTLINE11;
+	}
+	else
+	{
+		LOGE("invalid size=%i", size);
+		return NULL;
+	}
+
+	// validate the input tex
+	if(((self->format == TEXGZ_ALPHA) ||
+	    (self->format == TEXGZ_LUMINANCE)) &&
+	   (self->type == TEXGZ_UNSIGNED_BYTE))
+	{
+		// OK
+	}
+	else
+	{
+		LOGE("invalid format=0x%X, type=0x%X",
+		     self->format, self->type);
+		return NULL;
+	}
+
+	// create the dst tex
+	int w2 = self->width  + 2*off;
+	int h2 = self->height + 2*off;
+	texgz_tex_t* tex = texgz_tex_new(w2, h2,
+                                     w2, h2,
+                                     TEXGZ_UNSIGNED_BYTE,
+	                                 TEXGZ_LUMINANCE_ALPHA,
+                                     NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	// copy the base
+	int i;
+	int j;
+	unsigned char* ps = self->pixels;
+	unsigned char* pd = tex->pixels;
+	for(i = 0; i < self->height; ++i)
+	{
+		for(j = 0; j < self->width; ++j)
+		{
+			int i2 = i + off;
+			int j2 = j + off;
+			pd[2*(i2*tex->stride + j2)] = ps[i*self->stride + j];
+		}
+	}
+
+	// sample the outline
+	for(i = 0; i < h2; ++i)
+	{
+		for(j = 0; j < w2; ++j)
+		{
+			texgz_tex_sampleOutline(tex, i, j, mask, size);
+		}
+	}
+
+	// success
+	return tex;
+
+	// failure
+	return NULL;
 }
 
 int texgz_tex_blit(texgz_tex_t* src, texgz_tex_t* dst,
