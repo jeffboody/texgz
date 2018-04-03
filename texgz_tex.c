@@ -2015,11 +2015,13 @@ texgz_tex_t* texgz_tex_outline(texgz_tex_t* self, int size)
 	// create the dst tex
 	int w2 = self->width  + 2*off;
 	int h2 = self->height + 2*off;
-	texgz_tex_t* tex = texgz_tex_new(w2, h2,
-                                     w2, h2,
-                                     TEXGZ_UNSIGNED_BYTE,
+	int w2r = w2 + (w2%2);
+	int h2r = h2 + (h2%2);
+	texgz_tex_t* tex = texgz_tex_new(w2r, h2r,
+	                                 w2r, h2r,
+	                                 TEXGZ_UNSIGNED_BYTE,
 	                                 TEXGZ_LUMINANCE_ALPHA,
-                                     NULL);
+	                                 NULL);
 	if(tex == NULL)
 	{
 		return NULL;
