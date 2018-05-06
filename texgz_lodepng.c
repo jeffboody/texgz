@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "texgz_png.h"
-#include "../lodepng/lodepng.h"
+#include "../lodepng/lodepng.cpp"
 
 #define LOG_TAG "texgz"
 #include "texgz_log.h"
