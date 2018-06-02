@@ -1,0 +1,18 @@
+TARGET   = libtexgz.bc
+CLASSES  = texgz_tex texgz_log
+SOURCE   = $(CLASSES:%=%.c)
+OBJECTS  = $(SOURCE:.c=.bc)
+HFILES   = $(CLASSES:%=%.h)
+FLAGS    = -O2 -Wall -s USE_ZLIB=1
+EMCC     = emcc
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(EMCC) $(OBJECTS) $(FLAGS) -o $(TARGET)
+
+clean:
+	rm -f $(OBJECTS) *~ \#*\# $(TARGET)
+
+%.bc: %.c $(HFILES)
+	$(EMCC) $(FLAGS) $< -o $@
