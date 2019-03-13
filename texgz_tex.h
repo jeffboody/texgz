@@ -81,6 +81,10 @@ texgz_tex_t* texgz_tex_outline(texgz_tex_t* self, int size);
 int          texgz_tex_blit(texgz_tex_t* src, texgz_tex_t* dst,
                             int width, int height,
                             int xs, int ys, int xd, int yd);
+void         texgz_tex_fill(texgz_tex_t* self,
+                            int top, int left,
+                            int width, int height,
+                            unsigned int color);
 void         texgz_tex_sample(texgz_tex_t* self,
                               float u, float v,
                               int bpp, unsigned char* pixel);

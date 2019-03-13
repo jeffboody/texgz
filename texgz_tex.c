@@ -2099,6 +2099,79 @@ int texgz_tex_blit(texgz_tex_t* src, texgz_tex_t* dst,
 	return 1;
 }
 
+void texgz_tex_fill(texgz_tex_t* self,
+                    int top, int left,
+                    int width, int height,
+                    unsigned int color)
+{
+	assert(self);
+	assert(self->type   == TEXGZ_UNSIGNED_BYTE);
+	assert(self->format == TEXGZ_RGBA);
+
+	if((width  <= 0) || (height <= 0))
+	{
+		// ignore
+		return;
+	}
+
+	// clip rectangle
+	int bottom = top  + height - 1;
+	int right  = left + width  - 1;
+	if((top    >= self->height) ||
+	   (left   >= self->width)  ||
+	   (bottom < 0)             ||
+	   (right  < 0))
+	{
+		return;
+	}
+
+	// resize rectangle
+	if(top < 0)
+	{
+		top = 0;
+	}
+	if(left < 0)
+	{
+		left = 0;
+	}
+	if(bottom >= self->height)
+	{
+		bottom = self->height - 1;
+	}
+	if(right >= self->width)
+	{
+		right = self->width - 1;
+	}
+
+	unsigned char r = (unsigned char)
+	                  ((color >> 24)&0xFF);
+	unsigned char g = (unsigned char)
+	                  ((color >> 16)&0xFF);
+	unsigned char b = (unsigned char)
+	                  ((color >> 8)&0xFF);
+	unsigned char a = (unsigned char)
+	                  (color&0xFF);
+
+	// fill first scanline
+	int i;
+	int j;
+	int bpp = texgz_tex_bpp(self);
+	unsigned char* pix;
+	for(i = top; i <= bottom; ++i)
+	{
+		int roff = bpp*i*self->stride;
+		for(j = left; j <= right; ++j)
+		{
+			int coff = bpp*j;
+			pix = &self->pixels[roff + coff];
+			pix[0] = r;
+			pix[1] = g;
+			pix[2] = b;
+			pix[3] = a;
+		}
+	}
+}
+
 void texgz_tex_sample(texgz_tex_t* self,
                       float u, float v,
                       int bpp, unsigned char* pixel)
