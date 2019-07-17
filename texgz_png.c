@@ -46,7 +46,8 @@ texgz_tex_t* texgz_png_import(const char* fname)
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_png_importf(f);
+	// size is only used by lodepng
+	texgz_tex_t* tex = texgz_png_importf(f, 0);
 	if(tex == NULL)
 	{
 		goto fail_importf;
@@ -63,9 +64,11 @@ texgz_tex_t* texgz_png_import(const char* fname)
 	return NULL;
 }
 
-texgz_tex_t* texgz_png_importf(FILE* f)
+texgz_tex_t* texgz_png_importf(FILE* f, size_t size)
 {
 	assert(f);
+
+	// size is only used by lodepng
 
 	unsigned char sig[8];
 	if(fread(sig, 1, 8, f) != 8)
