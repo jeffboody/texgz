@@ -1,5 +1,5 @@
 TARGET  = libtexgz.a
-CLASSES = texgz_tex texgz_log texgz_jpeg texgz_png
+CLASSES = texgz_tex texgz_jpeg texgz_png
 ifeq ($(TEXGZ_USE_JP2),1)
 	CLASSES += texgz_jp2
 endif

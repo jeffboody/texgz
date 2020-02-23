@@ -22,8 +22,7 @@ add_library(texgz
             # Source
             ${SOURCE_PNG}
             ${SOURCE_JPEG}
-            texgz_tex.c
-            texgz_log.c)
+            texgz_tex.c)
 
 # Linking
 target_link_libraries(texgz

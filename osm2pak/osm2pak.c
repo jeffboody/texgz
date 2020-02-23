@@ -21,17 +21,16 @@
  *
  */
 
-#include <stdlib.h>
-#include <assert.h>
-#include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "texgz/texgz_tex.h"
-#include "texgz/texgz_png.h"
-#include "libpak/pak_file.h"
+#include <errno.h>
+#include <stdlib.h>
 
 #define LOG_TAG "osm2pak"
-#include "texgz/texgz_log.h"
+#include "libcc/cc_log.h"
+#include "libpak/pak_file.h"
+#include "texgz/texgz_png.h"
+#include "texgz/texgz_tex.h"
 
 /***********************************************************
 * public                                                   *
@@ -50,7 +49,8 @@ int main(int argc, char** argv)
 	// create directories if necessary
 	char dname[256];
 	snprintf(dname, 256, "%s", "osm");
-	if(mkdir(dname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+	if(mkdir(dname, S_IRWXU | S_IRWXG | S_IROTH |
+	                S_IXOTH) == -1)
 	{
 		if(errno == EEXIST)
 		{
@@ -91,7 +91,8 @@ int main(int argc, char** argv)
 		// create directories if necessary
 		char dname[256];
 		snprintf(dname, 256, "osm/%i", zoom);
-		if(mkdir(dname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+		if(mkdir(dname, S_IRWXU | S_IRWXG | S_IROTH |
+		                S_IXOTH) == -1)
 		{
 			if(errno == EEXIST)
 			{
@@ -121,7 +122,8 @@ int main(int argc, char** argv)
 				int xj = 8*x + j;
 				int yi = 8*y + i;
 
-				snprintf(fname, 256, "localhost/osm/%i/%i/%i.png", zoom, xj, yi);
+				snprintf(fname, 256, "localhost/osm/%i/%i/%i.png",
+				         zoom, xj, yi);
 				texgz_tex_t* tex = texgz_png_import(fname);
 				if(tex == NULL)
 				{
@@ -146,6 +148,8 @@ int main(int argc, char** argv)
 
 		pak_file_close(&pak);
 	}
+
+	// line allocated by standard C library
 	free(line);
 
 	return EXIT_SUCCESS;

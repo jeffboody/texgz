@@ -22,23 +22,22 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
-#include "texgz/texgz_tex.h"
-#include "texgz/texgz_png.h"
-#include "libpak/pak_file.h"
 
 #define LOG_TAG "unpaktex"
-#include "libpak/pak_log.h"
+#include "libcc/cc_log.h"
+#include "libpak/pak_file.h"
+#include "texgz/texgz_png.h"
+#include "texgz/texgz_tex.h"
 
 #define SUBTILE_COUNT 8
 #define SUBTILE_SIZE  256
 
-static void merge(texgz_tex_t* dst, pak_file_t* pak, int i, int j)
+static
+void merge(texgz_tex_t* dst, pak_file_t* pak, int i, int j)
 {
-	assert(dst);
-	assert(pak);
-	LOGD("debug i=%i, j=%i", i, j);
+	ASSERT(dst);
+	ASSERT(pak);
 
 	char key[256];
 	snprintf(key, 256, "%i_%i", j, i);
@@ -54,20 +53,25 @@ static void merge(texgz_tex_t* dst, pak_file_t* pak, int i, int j)
 		return;
 	}
 
-	if(texgz_tex_convert(src, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA) == 0)
+	if(texgz_tex_convert(src, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA) == 0)
 	{
 		goto fail_convert;
 	}
 
 	// copy from src to dst
+	// same format for src and dst
 	int m;
-	int bpp = texgz_tex_bpp(dst); // same format for src and dst
-	unsigned char* dst_base = &(dst->pixels[SUBTILE_SIZE*i*dst->stride*bpp +
-	                                        SUBTILE_SIZE*j*bpp]);
+	int bpp = texgz_tex_bpp(dst);
+	unsigned char* dst_base;
+	dst_base = &(dst->pixels[SUBTILE_SIZE*i*dst->stride*bpp +
+	                         SUBTILE_SIZE*j*bpp]);
 	for(m = 0; m < SUBTILE_SIZE; ++m)
 	{
-		unsigned char* dst_pixels = &(dst_base[m*dst->stride*bpp]);
-		unsigned char* src_pixels = &(src->pixels[m*src->stride*bpp]);
+		unsigned char* dst_pixels;
+		unsigned char* src_pixels;
+		dst_pixels = &(dst_base[m*dst->stride*bpp]);
+		src_pixels = &(src->pixels[m*src->stride*bpp]);
 		memcpy(dst_pixels, src_pixels, SUBTILE_SIZE*bpp);
 	}
 
@@ -97,9 +101,9 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	texgz_tex_t* dst = texgz_tex_new(2048, 2048, 2048, 2048,
-	                                 TEXGZ_UNSIGNED_BYTE,
-	                                 TEXGZ_RGBA, NULL);
+	texgz_tex_t* dst;
+	dst = texgz_tex_new(2048, 2048, 2048, 2048,
+	                    TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA, NULL);
 	if(dst == NULL)
 	{
 		goto fail_dst;

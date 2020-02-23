@@ -22,24 +22,23 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
-#include <texgz/texgz_tex.h>
-#include <texgz/texgz_jpeg.h>
-#include <texgz/texgz_png.h>
+
+#define LOG_TAG "texgz"
+#include "libcc/cc_log.h"
+#include "texgz/texgz_tex.h"
+#include "texgz/texgz_jpeg.h"
+#include "texgz/texgz_png.h"
 #ifdef TEXGZ_USE_JP2
 	// To enable JP2 support
 	// TEXGZ_USE_JP2=1 make
-	#include <texgz/texgz_jp2.h>
+	#include "texgz/texgz_jp2.h"
 #endif
-
-#define LOG_TAG "texgz"
-#include <texgz/texgz_log.h>
 
 static int check_ext(const char* fname, const char* ext)
 {
-	assert(fname);
-	assert(ext);
+	ASSERT(fname);
+	ASSERT(ext);
 
 	size_t len_fname = strlen(fname);
 	size_t len_ext   = strlen(ext);

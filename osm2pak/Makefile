@@ -6,15 +6,18 @@ HFILES   = $(CLASSES:%=%.h)
 OPT      = -O2 -Wall
 #OPT      = -g -Wall
 CFLAGS   = $(OPT) -I.
-LDFLAGS  = -Llibpak -lpak -Ltexgz -ltexgz -lpng -lm -lz
+LDFLAGS  = -Llibpak -lpak -Ltexgz -ltexgz -Llibcc -lcc -lpng -lm -lz
 CCC      = gcc
 
 all: $(TARGET)
 
-$(TARGET): $(OBJECTS) libpak texgz
+$(TARGET): $(OBJECTS) libcc libpak texgz
 	$(CCC) $(OPT) $(OBJECTS) -o $@ $(LDFLAGS)
 
-.PHONY: libpak texgz
+.PHONY: libcc libpak texgz
+
+libcc:
+	$(MAKE) -C libcc
 
 libpak:
 	$(MAKE) -C libpak
@@ -24,8 +27,9 @@ texgz:
 
 clean:
 	rm -f $(OBJECTS) *~ \#*\# $(TARGET)
+	$(MAKE) -C libcc clean
 	$(MAKE) -C libpak clean
 	$(MAKE) -C texgz clean
-	rm libpak texgz
+	rm libcc libpak texgz
 
 $(OBJECTS): $(HFILES)

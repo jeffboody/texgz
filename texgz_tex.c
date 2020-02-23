@@ -21,15 +21,15 @@
  *
  */
 
-#include "texgz_tex.h"
-#include <string.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <zlib.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include <zlib.h>
 
 #define LOG_TAG "texgz"
-#include "texgz_log.h"
+#include "../libcc/cc_log.h"
+#include "../libcc/cc_memory.h"
+#include "texgz_tex.h"
 
 /*
  * private - optimizations
@@ -97,13 +97,12 @@ float TEXGZ_TEX_OUTLINE11[121] =
 	0.00f, 0.00f, 0.13f, 0.63f, 0.88f, 1.00f, 0.88f, 0.63f, 0.13f, 0.00f, 0.00f,
 };
 
-static void texgz_tex_sampleOutline(texgz_tex_t* self,
-                                    int i, int j,
-                                    float* mask,
-                                    int size)
+static void
+texgz_tex_sampleOutline(texgz_tex_t* self, int i, int j,
+                        float* mask, int size)
 {
-	assert(self);
-	assert(mask);
+	ASSERT(self);
+	ASSERT(mask);
 
 	// sample state
 	int           off = size/2;
@@ -168,42 +167,38 @@ static void texgz_tex_sampleOutline(texgz_tex_t* self,
 
 static void texgz_table_1to8(unsigned char* table)
 {
-	assert(table);
-	LOGD("debug");
+	ASSERT(table);
 
 	int i;
 	for(i = 0; i < 2; ++i)
-		table[i] = (unsigned char) (i * 255.0f + 0.5f);
+		table[i] = (unsigned char) (i*255.0f + 0.5f);
 }
 
 static void texgz_table_4to8(unsigned char* table)
 {
-	assert(table);
-	LOGD("debug");
+	ASSERT(table);
 
 	int i;
 	for(i = 0; i < 16; ++i)
-		table[i] = (unsigned char) (i * 255.0f / 15.0f + 0.5f);
+		table[i] = (unsigned char) (i*255.0f/15.0f + 0.5f);
 }
 
 static void texgz_table_5to8(unsigned char* table)
 {
-	assert(table);
-	LOGD("debug");
+	ASSERT(table);
 
 	int i;
 	for(i = 0; i < 32; ++i)
-		table[i] = (unsigned char) (i * 255.0f / 31.0f + 0.5f);
+		table[i] = (unsigned char) (i*255.0f/31.0f + 0.5f);
 }
 
 static void texgz_table_6to8(unsigned char* table)
 {
-	assert(table);
-	LOGD("debug");
+	ASSERT(table);
 
 	int i;
 	for(i = 0; i < 64; ++i)
-		table[i] = (unsigned char) (i * 255.0f / 63.0f + 0.5f);
+		table[i] = (unsigned char) (i*255.0f/63.0f + 0.5f);
 }
 
 /*
@@ -212,19 +207,20 @@ static void texgz_table_6to8(unsigned char* table)
 
 static texgz_tex_t* texgz_tex_4444to8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_SHORT_4_4_4_4) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_SHORT_4_4_4_4) ||
+	   (self->format != TEXGZ_RGBA))
 	{
 		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -252,19 +248,21 @@ static texgz_tex_t* texgz_tex_4444to8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_565to8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_SHORT_5_6_5) || (self->format != TEXGZ_RGB))
+	if((self->type != TEXGZ_UNSIGNED_SHORT_5_6_5) ||
+	   (self->format != TEXGZ_RGB))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -279,8 +277,10 @@ static texgz_tex_t* texgz_tex_565to8888(texgz_tex_t* self)
 		for(x = 0; x < tex->stride; ++x)
 		{
 			idx = y*tex->stride + x;
-			unsigned short* src = (unsigned short*) (&self->pixels[2*idx]);
-			unsigned char*  dst = &tex->pixels[4*idx];
+			unsigned short* src;
+			unsigned char*  dst;
+			src = (unsigned short*) (&self->pixels[2*idx]);
+			dst = &tex->pixels[4*idx];
 
 			dst[0] = table_5to8[(src[0] >> 11) & 0x1F];   // r
 			dst[1] = table_6to8[(src[0] >> 5) & 0x3F];    // g
@@ -294,19 +294,21 @@ static texgz_tex_t* texgz_tex_565to8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_5551to8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_SHORT_5_5_5_1) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_SHORT_5_5_5_1) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -321,8 +323,10 @@ static texgz_tex_t* texgz_tex_5551to8888(texgz_tex_t* self)
 		for(x = 0; x < tex->stride; ++x)
 		{
 			idx = y*tex->stride + x;
-			unsigned short* src = (unsigned short*) (&self->pixels[2*idx]);
-			unsigned char*  dst = &tex->pixels[4*idx];
+			unsigned short* src;
+			unsigned char*  dst;
+			src = (unsigned short*) (&self->pixels[2*idx]);
+			dst = &tex->pixels[4*idx];
 
 			dst[0] = table_5to8[(src[0] >> 11) & 0x1F];   // r
 			dst[1] = table_5to8[(src[0] >> 6)  & 0x1F];   // g
@@ -336,19 +340,21 @@ static texgz_tex_t* texgz_tex_5551to8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_888to8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGB))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGB))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -373,8 +379,7 @@ static texgz_tex_t* texgz_tex_888to8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_Lto8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
 	   (self->format != TEXGZ_LUMINANCE))
@@ -384,10 +389,11 @@ static texgz_tex_t* texgz_tex_Lto8888(texgz_tex_t* self)
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -412,8 +418,7 @@ static texgz_tex_t* texgz_tex_Lto8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_Ato8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
 	   (self->format != TEXGZ_ALPHA))
@@ -423,10 +428,11 @@ static texgz_tex_t* texgz_tex_Ato8888(texgz_tex_t* self)
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -451,20 +457,21 @@ static texgz_tex_t* texgz_tex_Ato8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_LAto8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
 	   (self->format != TEXGZ_LUMINANCE_ALPHA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -489,19 +496,21 @@ static texgz_tex_t* texgz_tex_LAto8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_FLOAT) || (self->format != TEXGZ_LUMINANCE))
+	if((self->type != TEXGZ_FLOAT) ||
+	   (self->format != TEXGZ_LUMINANCE))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 	{
 		return NULL;
@@ -517,9 +526,9 @@ static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
 			float*         src = &fpixels[idx];
 			unsigned char* dst = &tex->pixels[4*idx];
 
-			dst[0] = (unsigned char) (255.0f * src[0]);
-			dst[1] = (unsigned char) (255.0f * src[0]);
-			dst[2] = (unsigned char) (255.0f * src[0]);
+			dst[0] = (unsigned char) (255.0f*src[0]);
+			dst[1] = (unsigned char) (255.0f*src[0]);
+			dst[2] = (unsigned char) (255.0f*src[0]);
 			dst[3] = 0xFF;
 		}
 	}
@@ -529,19 +538,22 @@ static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888to4444(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_SHORT_4_4_4_4, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_SHORT_4_4_4_4,
+	                    TEXGZ_RGBA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -569,19 +581,21 @@ static texgz_tex_t* texgz_tex_8888to4444(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888to565(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_SHORT_5_6_5, TEXGZ_RGB,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_SHORT_5_6_5,
+	                    TEXGZ_RGB, NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -609,19 +623,21 @@ static texgz_tex_t* texgz_tex_8888to565(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888to5551(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_SHORT_5_5_5_1, TEXGZ_RGBA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_SHORT_5_5_5_1,
+	                    TEXGZ_RGBA, NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -640,8 +656,8 @@ static texgz_tex_t* texgz_tex_8888to5551(texgz_tex_t* self)
             unsigned char a = (src[3] >> 7) & 0x01;
 
 			// RGBA <- least significant
-			dst[0] = a | ((b << 1) & 0x3E) | ((g << 6) & 0xC0);   // GBA
-			dst[1] = (g >> 2) | ((r << 3) & 0xF8);                // RG
+			dst[0] = a | ((b << 1) & 0x3E) | ((g << 6) & 0xC0); // GBA
+			dst[1] = (g >> 2) | ((r << 3) & 0xF8);              // RG
 		}
 	}
 
@@ -650,19 +666,21 @@ static texgz_tex_t* texgz_tex_8888to5551(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888to888(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -686,19 +704,21 @@ static texgz_tex_t* texgz_tex_8888to888(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888toL(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_LUMINANCE,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE,
+	                    TEXGZ_LUMINANCE, NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -711,9 +731,10 @@ static texgz_tex_t* texgz_tex_8888toL(texgz_tex_t* self)
 			unsigned char* src = &self->pixels[4*idx];
 			unsigned char* dst = &tex->pixels[idx];
 
-			unsigned int luminance = ((unsigned int) src[0] +
-			                          (unsigned int) src[1] +
-			                          (unsigned int) src[2])/3;
+			unsigned int luminance;
+			luminance = ((unsigned int) src[0] +
+			             (unsigned int) src[1] +
+			             (unsigned int) src[2])/3;
 			if(luminance > 0xFF)
 			{
 				luminance = 0xFF;
@@ -727,19 +748,21 @@ static texgz_tex_t* texgz_tex_8888toL(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888toA(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_UNSIGNED_BYTE, TEXGZ_ALPHA,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_ALPHA,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -761,20 +784,21 @@ static texgz_tex_t* texgz_tex_8888toA(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888toLA(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-	                                 self->stride, self->vstride,
-	                                 TEXGZ_UNSIGNED_BYTE,
-	                                 TEXGZ_LUMINANCE_ALPHA,
-	                                 NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    TEXGZ_UNSIGNED_BYTE,
+	                    TEXGZ_LUMINANCE_ALPHA, NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -798,19 +822,21 @@ static texgz_tex_t* texgz_tex_8888toLA(texgz_tex_t* self)
 
 static texgz_tex_t* texgz_tex_8888toF(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	if((self->type != TEXGZ_UNSIGNED_BYTE) || (self->format != TEXGZ_RGBA))
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
 	{
-		LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     TEXGZ_FLOAT, TEXGZ_LUMINANCE,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_FLOAT, TEXGZ_LUMINANCE,
+                        NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -825,17 +851,17 @@ static texgz_tex_t* texgz_tex_8888toF(texgz_tex_t* self)
 			float*         dst = &fpixels[idx];
 
 			// use the red channel for luminance
-			dst[0] = ((float) src[0]) / 255.0f;
+			dst[0] = ((float) src[0])/255.0f;
 		}
 	}
 
 	return tex;
 }
 
-static texgz_tex_t* texgz_tex_8888format(texgz_tex_t* self, int format)
+static texgz_tex_t*
+texgz_tex_8888format(texgz_tex_t* self, int format)
 {
-	assert(self);
-	LOGD("debug format=0x%X", format);
+	ASSERT(self);
 
 	if(self->type != TEXGZ_UNSIGNED_BYTE)
 	{
@@ -851,7 +877,8 @@ static texgz_tex_t* texgz_tex_8888format(texgz_tex_t* self, int format)
 		b = 0;
 		a = 3;
 	}
-	else if((self->format == TEXGZ_BGRA) && (format == TEXGZ_RGBA))
+	else if((self->format == TEXGZ_BGRA) &&
+	        (format == TEXGZ_RGBA))
 	{
 		r = 2;
 		g = 1;
@@ -860,14 +887,15 @@ static texgz_tex_t* texgz_tex_8888format(texgz_tex_t* self, int format)
 	}
 	else
 	{
-		LOGE("invalid type=0x%X, format=0x%X, dst_format=0x%X", self->type, self->format, format);
+		LOGE("invalid type=0x%X, format=0x%X, dst_format=0x%X",
+		     self->type, self->format, format);
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-                                     self->stride, self->vstride,
-                                     self->type, format,
-                                     NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        self->type, format, NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -896,10 +924,11 @@ static texgz_tex_t* texgz_tex_8888format(texgz_tex_t* self, int format)
 
 #define TEXGZ_TEX_HSIZE 28
 
-static int texgz_readint(const unsigned char* buffer, int offset)
+static int
+texgz_readint(const unsigned char* buffer, int offset)
 {
-	assert(buffer);
-	assert(offset >= 0);
+	ASSERT(buffer);
+	ASSERT(offset >= 0);
 
 	int b0 = (int) buffer[offset + 0];
 	int b1 = (int) buffer[offset + 1];
@@ -921,19 +950,19 @@ static int texgz_swapendian(int i)
 	return o;
 }
 
-static int texgz_parseh(const unsigned char* buffer,
-                        int* type, int* format,
-                        int* width, int* height,
-                        int* stride, int* vstride)
+static int
+texgz_parseh(const unsigned char* buffer,
+             int* type, int* format,
+             int* width, int* height,
+             int* stride, int* vstride)
 {
-	assert(buffer);
-	assert(type);
-	assert(format);
-	assert(width);
-	assert(height);
-	assert(stride);
-	assert(vstride);
-	LOGD("debug");
+	ASSERT(buffer);
+	ASSERT(type);
+	ASSERT(format);
+	ASSERT(width);
+	ASSERT(height);
+	ASSERT(stride);
+	ASSERT(vstride);
 
 	int magic = texgz_readint(buffer, 0);
 	if(magic == 0x000B00D9)
@@ -965,8 +994,6 @@ static int texgz_parseh(const unsigned char* buffer,
 
 static int texgz_nextpot(int x)
 {
-	LOGD("debug x=%i", x);
-
 	int xp = 1;
 	while(x > xp)
 	{
@@ -979,60 +1006,73 @@ static int texgz_nextpot(int x)
  * public
  */
 
-texgz_tex_t* texgz_tex_new(int width, int height,
-                           int stride, int vstride,
-                           int type, int format,
-                           unsigned char* pixels)
+texgz_tex_t*
+texgz_tex_new(int width, int height,
+              int stride, int vstride,
+              int type, int format,
+              unsigned char* pixels)
 {
 	// pixels can be NULL
-	LOGD("debug width=%i, height=%i, stride=%i, vstride=%i, type=0x%X, format=0x%X, pixels=%p",
-	     width, height, stride, vstride, type, format, pixels);
 
 	if((stride <= 0) || (width > stride))
 	{
-		LOGE("invalid width=%i, stride=%i", width, stride);
+		LOGE("invalid width=%i, stride=%i",
+		     width, stride);
 		return NULL;
 	}
 
 	if((vstride <= 0) || (height > vstride))
 	{
-		LOGE("invalid height=%i, vstride=%i", height, vstride);
+		LOGE("invalid height=%i, vstride=%i",
+		     height, vstride);
 		return NULL;
 	}
 
-	if((type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) && (format == TEXGZ_RGBA))
+	if((type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) &&
+	   (format == TEXGZ_RGBA))
 		; // ok
-	else if((type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) && (format == TEXGZ_RGBA))
+	else if((type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) &&
+	        (format == TEXGZ_RGBA))
 		; // ok
-	else if((type == TEXGZ_UNSIGNED_SHORT_5_6_5) && (format == TEXGZ_RGB))
+	else if((type == TEXGZ_UNSIGNED_SHORT_5_6_5) &&
+	        (format == TEXGZ_RGB))
 		; // ok
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_RGBA))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_RGBA))
 		; // ok
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_RGB))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_RGB))
 		; // ok
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_LUMINANCE))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_LUMINANCE))
 		; // ok
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_ALPHA))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_ALPHA))
 		; // ok
-	else if((type == TEXGZ_SHORT) && (format == TEXGZ_LUMINANCE))
+	else if((type == TEXGZ_SHORT) &&
+	        (format == TEXGZ_LUMINANCE))
 		; // ok
 	else if((type == TEXGZ_UNSIGNED_BYTE) &&
 	        (format == TEXGZ_LUMINANCE_ALPHA))
 		; // ok
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_BGRA))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_BGRA))
 		; // ok
-	else if((type == TEXGZ_FLOAT) && (format == TEXGZ_LUMINANCE))
+	else if((type == TEXGZ_FLOAT) &&
+	        (format == TEXGZ_LUMINANCE))
 		; // ok
 	else
 	{
-		LOGE("invalid type=0x%X, format=0x%X", type, format);
+		LOGE("invalid type=0x%X, format=0x%X",
+		     type, format);
 		return NULL;
 	}
 
-	texgz_tex_t* self = (texgz_tex_t*) malloc(sizeof(texgz_tex_t));
+	texgz_tex_t* self;
+	self = (texgz_tex_t*) MALLOC(sizeof(texgz_tex_t));
 	if(self == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return NULL;
 	}
 
@@ -1050,10 +1090,10 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 		goto fail_bpp;
 	}
 
-	self->pixels = (unsigned char*) malloc((size_t) size);
+	self->pixels = (unsigned char*) MALLOC((size_t) size);
 	if(self->pixels == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		goto fail_pixels;
 	}
 
@@ -1068,28 +1108,26 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 	// failure
 	fail_pixels:
 	fail_bpp:
-		free(self);
+		FREE(self);
 	return NULL;
 }
 
 void texgz_tex_delete(texgz_tex_t** _self)
 {
-	assert(_self);
+	ASSERT(_self);
 
 	texgz_tex_t* self = *_self;
 	if(self)
 	{
-		LOGD("debug");
-		free(self->pixels);
-		free(self);
+		FREE(self->pixels);
+		FREE(self);
 		*_self = NULL;
 	}
 }
 
 texgz_tex_t* texgz_tex_copy(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	return texgz_tex_new(self->width, self->height,
                          self->stride, self->vstride,
@@ -1099,7 +1137,7 @@ texgz_tex_t* texgz_tex_copy(texgz_tex_t* self)
 
 texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 {
-	assert(self);
+	ASSERT(self);
 
 	// only support even/one w/h textures
 	int w = self->width;
@@ -1156,9 +1194,9 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 	// create downscale texture
 	w = (w == 1) ? 1 : w/2;
 	h = (h == 1) ? 1 : h/2;
-	texgz_tex_t* down = texgz_tex_new(w, h, w, h,
-	                                  src->type, src->format,
-	                                  NULL);
+	texgz_tex_t* down;
+	down = texgz_tex_new(w, h, w, h, src->type, src->format,
+	                     NULL);
 	if(down == NULL)
 	{
 		goto fail_new;
@@ -1299,8 +1337,7 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 
 texgz_tex_t* texgz_tex_import(const char* filename)
 {
-	assert(filename);
-	LOGD("debug filename=%s", filename);
+	ASSERT(filename);
 
 	// open texture
 	gzFile f = gzopen(filename, "rb");
@@ -1331,7 +1368,9 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 		goto fail_parseh;
 	}
 
-	texgz_tex_t* self = texgz_tex_new(width, height, stride, vstride, type, format, NULL);
+	texgz_tex_t* self;
+	self = texgz_tex_new(width, height, stride, vstride,
+	                     type, format, NULL);
 	if(self == NULL)
 		goto fail_tex;
 
@@ -1371,8 +1410,7 @@ texgz_tex_t* texgz_tex_import(const char* filename)
 
 texgz_tex_t* texgz_tex_importz(const char* filename)
 {
-	assert(filename);
-	LOGD("debug filename=%s", filename);
+	ASSERT(filename);
 
 	FILE* f = fopen(filename, "r");
 	if(f == NULL)
@@ -1393,15 +1431,14 @@ texgz_tex_t* texgz_tex_importz(const char* filename)
 
 texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 {
-	assert(f);
-	assert(size > 0);
-	LOGD("debug size=%i", size);
+	ASSERT(f);
+	ASSERT(size > 0);
 
 	// allocate src buffer
-	char* src = (char*) malloc(size*sizeof(char));
+	char* src = (char*) MALLOC(size*sizeof(char));
 	if(src == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return NULL;
 	}
 
@@ -1417,7 +1454,8 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	unsigned char header[TEXGZ_TEX_HSIZE];
 	uLong         hsize    = TEXGZ_TEX_HSIZE;
 	uLong         src_size = (uLong) size;
-	uncompress((Bytef*) header, &hsize, (const Bytef*) src, src_size);
+	uncompress((Bytef*) header, &hsize, (const Bytef*) src,
+	           src_size);
 	if(hsize != TEXGZ_TEX_HSIZE)
 	{
 		LOGE("uncompress failed hsize=%i", (int) hsize);
@@ -1431,33 +1469,35 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	int stride;
 	int vstride;
 	if(texgz_parseh(header, &type, &format,
-                    &width, &height, &stride, &vstride) == 0)
+                    &width, &height, &stride,
+	                &vstride) == 0)
 	{
 		goto fail_parseh;
 	}
 
 	// create tex
-	texgz_tex_t* self = texgz_tex_new(width, height,
-	                                  stride, vstride,
-	                                  type, format,
-	                                  NULL);
+	texgz_tex_t* self;
+	self = texgz_tex_new(width, height, stride, vstride,
+	                     type, format, NULL);
 	if(self == NULL)
 	{
 		goto fail_tex;
 	}
 
 	// allocate dst buffer
-	int   bytes        = texgz_tex_size(self);
-	uLong dst_size     =  TEXGZ_TEX_HSIZE + bytes;
-	unsigned char* dst = (unsigned char*)
-	                     malloc(dst_size*sizeof(unsigned char));
+	int   bytes    = texgz_tex_size(self);
+	uLong dst_size =  TEXGZ_TEX_HSIZE + bytes;
+	unsigned char* dst;
+	dst = (unsigned char*)
+	      MALLOC(dst_size*sizeof(unsigned char));
 	if(dst == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		goto fail_dst;
 	}
 
-	if(uncompress((Bytef*) dst, &dst_size, (const Bytef*) src, src_size) != Z_OK)
+	if(uncompress((Bytef*) dst, &dst_size,
+	              (const Bytef*) src, src_size) != Z_OK)
 	{
 		LOGE("fail uncompress");
 		goto fail_uncompress;
@@ -1474,8 +1514,8 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	memcpy(self->pixels, &dst[TEXGZ_TEX_HSIZE], bytes);
 
 	// free src and dst buffers
-	free(src);
-	free(dst);
+	FREE(src);
+	FREE(dst);
 
 	// success
 	return self;
@@ -1483,7 +1523,7 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	// failure
 	fail_dst_size:
 	fail_uncompress:
-		free(dst);
+		FREE(dst);
 	fail_dst:
 		texgz_tex_delete(&self);
 	fail_tex:
@@ -1491,15 +1531,15 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	fail_uncompress_header:
 	fail_read:
 		fseek(f, start, SEEK_SET);
-		free(src);
+		FREE(src);
 	return NULL;
 }
 
-int texgz_tex_export(texgz_tex_t* self, const char* filename)
+int texgz_tex_export(texgz_tex_t* self,
+                     const char* filename)
 {
-	assert(self);
-	assert(filename);
-	LOGD("debug filename=%s", filename);
+	ASSERT(self);
+	ASSERT(filename);
 
 	gzFile f = gzopen(filename, "wb");
 	if(f == NULL)
@@ -1510,37 +1550,44 @@ int texgz_tex_export(texgz_tex_t* self, const char* filename)
 
 	// write header
 	int magic = TEXGZ_MAGIC;
-	if(gzwrite(f, (const void*) &magic, sizeof(int)) != sizeof(int))
+	if(gzwrite(f, (const void*) &magic,
+	           sizeof(int)) != sizeof(int))
 	{
 		LOGE("failed to write MAGIC");
 		goto fail_header;
 	}
-	if(gzwrite(f, (const void*) &self->type, sizeof(int)) != sizeof(int))
+	if(gzwrite(f, (const void*) &self->type,
+	           sizeof(int)) != sizeof(int))
 	{
 		LOGE("failed to write type");
 		goto fail_header;
 	}
-	if(gzwrite(f, (const void*) &self->format, sizeof(int)) != sizeof(int))
+	if(gzwrite(f, (const void*) &self->format,
+	           sizeof(int)) != sizeof(int))
 	{
 		LOGE("failed to write format");
 		goto fail_header;
 	}
-	if(gzwrite(f, (const void*) &self->width, sizeof(int)) != sizeof(int))
+	if(gzwrite(f, (const void*) &self->width,
+	           sizeof(int)) != sizeof(int))
 	{
 		LOGE("failed to write width");
 		goto fail_header;
 	}
-	if(gzwrite(f, (const void*) &self->height, sizeof(int)) != sizeof(int))
+	if(gzwrite(f, (const void*) &self->height,
+	           sizeof(int)) != sizeof(int))
 	{
 		LOGE("failed to write height");
 		goto fail_header;
 	}
-	if(gzwrite(f, (const void*) &self->stride, sizeof(int)) != sizeof(int))
+	if(gzwrite(f, (const void*) &self->stride,
+	           sizeof(int)) != sizeof(int))
 	{
 		LOGE("failed to write stride");
 		goto fail_header;
 	}
-	if(gzwrite(f, (const void*) &self->vstride, sizeof(int)) != sizeof(int))
+	if(gzwrite(f, (const void*) &self->vstride,
+	           sizeof(int)) != sizeof(int))
 	{
 		LOGE("failed to write vstride");
 		goto fail_header;
@@ -1555,7 +1602,8 @@ int texgz_tex_export(texgz_tex_t* self, const char* filename)
 	unsigned char* pixels = self->pixels;
 	while(bytes > 0)
 	{
-		int bytes_written = gzwrite(f, (const void*) pixels, bytes);
+		int bytes_written = gzwrite(f, (const void*) pixels,
+		                            bytes);
 		if(bytes_written == 0)
 		{
 			LOGE("failed to write pixels");
@@ -1578,10 +1626,10 @@ int texgz_tex_export(texgz_tex_t* self, const char* filename)
 	return 0;
 }
 
-int texgz_tex_exportz(texgz_tex_t* self, const char* filename)
+int texgz_tex_exportz(texgz_tex_t* self,
+                      const char* filename)
 {
-	assert(filename);
-	LOGD("debug filename=%s", filename);
+	ASSERT(filename);
 
 	FILE* f = fopen(filename, "w");
 	if(f == NULL)
@@ -1597,9 +1645,8 @@ int texgz_tex_exportz(texgz_tex_t* self, const char* filename)
 
 int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
 {
-	assert(self);
-	assert(f);
-	LOGD("debug");
+	ASSERT(self);
+	ASSERT(f);
 
 	int bytes = texgz_tex_size(self);
 	if(bytes == 0)
@@ -1609,10 +1656,11 @@ int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
 
 	// allocate src buffer
 	int size = bytes + TEXGZ_TEX_HSIZE;
-	unsigned char* src = (unsigned char*) malloc(size*sizeof(unsigned char));
+	unsigned char* src;
+	src = (unsigned char*) MALLOC(size*sizeof(unsigned char));
 	if(src == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		return 0;
 	}
 
@@ -1630,11 +1678,12 @@ int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
 	// allocate dst buffer
 	uLong src_size = (uLong) (TEXGZ_TEX_HSIZE + bytes);
 	uLong dst_size = compressBound(src_size);
-	unsigned char* dst = (unsigned char*)
-	                     malloc(dst_size*sizeof(unsigned char));
+	unsigned char* dst;
+	dst = (unsigned char*)
+	      MALLOC(dst_size*sizeof(unsigned char));
 	if(dst == NULL)
 	{
-		LOGE("malloc failed");
+		LOGE("MALLOC failed");
 		goto fail_dst;
 	}
 
@@ -1647,15 +1696,16 @@ int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
 	}
 
 	// write buffer
-	if(fwrite(dst, sizeof(unsigned char), dst_size, f) != dst_size)
+	if(fwrite(dst, sizeof(unsigned char), dst_size,
+	          f) != dst_size)
 	{
 		LOGE("fwrite failed");
 		goto fail_fwrite;
 	}
 
 	// free src and dst buffer
-	free(src);
-	free(dst);
+	FREE(src);
+	FREE(dst);
 
 	// success
 	return 1;
@@ -1663,16 +1713,16 @@ int texgz_tex_exportf(texgz_tex_t* self, FILE* f)
 	// failure
 	fail_fwrite:
 	fail_compress:
-		free(dst);
+		FREE(dst);
 	fail_dst:
-		free(src);
+		FREE(src);
 	return 0;
 }
 
-int texgz_tex_convert(texgz_tex_t* self, int type, int format)
+int texgz_tex_convert(texgz_tex_t* self, int type,
+                      int format)
 {
-	assert(self);
-	LOGD("debug type=0x%X, format=0x%X", type, format);
+	ASSERT(self);
 
 	// already in requested format
 	if((type == self->type) && (format == self->format))
@@ -1698,7 +1748,8 @@ int texgz_tex_convert(texgz_tex_t* self, int type, int format)
 		return 1;
 	}
 
-	texgz_tex_t* tex = texgz_tex_convertcopy(self, type, format);
+	texgz_tex_t* tex;
+	tex = texgz_tex_convertcopy(self, type, format);
 	if(tex == NULL)
 		return 0;
 
@@ -1711,13 +1762,15 @@ int texgz_tex_convert(texgz_tex_t* self, int type, int format)
 	return 1;
 }
 
-texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
+texgz_tex_t*
+texgz_tex_convertcopy(texgz_tex_t* self, int type,
+                      int format)
 {
-	assert(self);
-	LOGD("debug type=0x%X, format=0x%X", type, format);
+	ASSERT(self);
 
 	// copy in the case that the src and dst formats match
-	// in particular this case prevents the conversion of 8888 to 8888
+	// in particular this case prevents the conversion of
+	// 8888 to 8888
 	if((type == self->type) && (format == self->format))
 		return texgz_tex_copy(self);
 
@@ -1725,25 +1778,35 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 	// No conversions are allowed on TEXGZ_SHORT
 	texgz_tex_t* tmp        = NULL;
 	int      tmp_delete = 1;   // delete if self is not 8888
-	if((self->type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) && (self->format == TEXGZ_RGBA))
+	if((self->type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) &&
+	   (self->format == TEXGZ_RGBA))
 		tmp = texgz_tex_4444to8888(self);
-	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_6_5) && (self->format == TEXGZ_RGB))
+	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_6_5) &&
+	        (self->format == TEXGZ_RGB))
 		tmp = texgz_tex_565to8888(self);
-	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) && (self->format == TEXGZ_RGBA))
+	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) &&
+	        (self->format == TEXGZ_RGBA))
 		tmp = texgz_tex_5551to8888(self);
-	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_RGB))
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_RGB))
 		tmp = texgz_tex_888to8888(self);
-	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_LUMINANCE))
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_LUMINANCE))
 		tmp = texgz_tex_Lto8888(self);
-	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_ALPHA))
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_ALPHA))
 		tmp = texgz_tex_Ato8888(self);
-	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_LUMINANCE_ALPHA))
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_LUMINANCE_ALPHA))
 		tmp = texgz_tex_LAto8888(self);
-	else if((self->type == TEXGZ_FLOAT) && (self->format == TEXGZ_LUMINANCE))
+	else if((self->type == TEXGZ_FLOAT) &&
+	        (self->format == TEXGZ_LUMINANCE))
 		tmp = texgz_tex_Fto8888(self);
-	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_BGRA))
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_BGRA))
 		tmp = texgz_tex_8888format(self, TEXGZ_RGBA);
-	else if((self->type == TEXGZ_UNSIGNED_BYTE) && (self->format == TEXGZ_RGBA))
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_RGBA))
 	{
 		tmp        = self;
 		tmp_delete = 0;
@@ -1758,27 +1821,38 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 
 	// convert to requested format
 	texgz_tex_t* tex = NULL;
-	if((type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) && (format == TEXGZ_RGBA))
+	if((type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) &&
+	   (format == TEXGZ_RGBA))
 		tex = texgz_tex_8888to4444(tmp);
-	else if((type == TEXGZ_UNSIGNED_SHORT_5_6_5) && (format == TEXGZ_RGB))
+	else if((type == TEXGZ_UNSIGNED_SHORT_5_6_5) &&
+	        (format == TEXGZ_RGB))
 		tex = texgz_tex_8888to565(tmp);
-	else if((type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) && (format == TEXGZ_RGBA))
+	else if((type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) &&
+	        (format == TEXGZ_RGBA))
 		tex = texgz_tex_8888to5551(tmp);
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_RGB))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_RGB))
 		tex = texgz_tex_8888to888(tmp);
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_LUMINANCE))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_LUMINANCE))
 		tex = texgz_tex_8888toL(tmp);
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_ALPHA))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_ALPHA))
 		tex = texgz_tex_8888toA(tmp);
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_LUMINANCE_ALPHA))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_LUMINANCE_ALPHA))
 		tex = texgz_tex_8888toLA(tmp);
-	else if((type == TEXGZ_FLOAT) && (format == TEXGZ_LUMINANCE))
+	else if((type == TEXGZ_FLOAT) &&
+	        (format == TEXGZ_LUMINANCE))
 		tex = texgz_tex_8888toF(tmp);
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_BGRA))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_BGRA))
 		tex = texgz_tex_8888format(tmp, TEXGZ_BGRA);
-	else if((type == TEXGZ_UNSIGNED_BYTE) && (format == TEXGZ_RGBA))
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_RGBA))
 	{
-		// note that tex will never equal self because of the shortcut copy
+		// note that tex will never equal self because of the
+		// shortcut copy
 		tex        = tmp;
 		tmp_delete = 0;
 	}
@@ -1790,7 +1864,8 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 	// check for errors
 	if(tex == NULL)
 	{
-		LOGE("could not convert to type=0x%X, format=0x%X", type, format);
+		LOGE("could not convert to type=0x%X, format=0x%X",
+		     type, format);
 		return NULL;
 	}
 
@@ -1800,8 +1875,7 @@ texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format)
 
 int texgz_tex_flipvertical(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	texgz_tex_t* tex = texgz_tex_flipverticalcopy(self);
 	if(tex == NULL)
@@ -1818,13 +1892,12 @@ int texgz_tex_flipvertical(texgz_tex_t* self)
 
 texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-	                                 self->stride, self->vstride,
-	                                 self->type, self->format,
-	                                 NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    self->type, self->format, NULL);
 	if(tex == NULL)
 		return NULL;
 
@@ -1835,19 +1908,22 @@ texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self)
 	int vstride = self->vstride;
 	for(y = 0; y < vstride; ++y)
 	{
-		unsigned char* src = &self->pixels[y*bpp*stride];
-		unsigned char* dst = &tex->pixels[(vstride - 1 - y)*bpp*stride];
+		unsigned char* src;
+		unsigned char* dst;
+		src = &self->pixels[y*bpp*stride];
+		dst = &tex->pixels[(vstride - 1 - y)*bpp*stride];
 		memcpy(dst, src, bpp*stride);
 	}
 	return tex;
 }
 
-int texgz_tex_crop(texgz_tex_t* self, int top, int left, int bottom, int right)
+int texgz_tex_crop(texgz_tex_t* self, int top, int left,
+                   int bottom, int right)
 {
-	assert(self);
-	LOGD("debug top=%i, left=%i, bottom=%i, right=%i", top, left, bottom, right);
+	ASSERT(self);
 
-	texgz_tex_t* tex = texgz_tex_cropcopy(self, top, left, bottom, right);
+	texgz_tex_t* tex;
+	tex = texgz_tex_cropcopy(self, top, left, bottom, right);
 	if(tex == NULL)
 		return 0;
 
@@ -1860,10 +1936,11 @@ int texgz_tex_crop(texgz_tex_t* self, int top, int left, int bottom, int right)
 	return 1;
 }
 
-texgz_tex_t* texgz_tex_cropcopy(texgz_tex_t* self, int top, int left, int bottom, int right)
+texgz_tex_t*
+texgz_tex_cropcopy(texgz_tex_t* self, int top, int left,
+                   int bottom, int right)
 {
-	assert(self);
-	LOGD("debug top=%i, left=%i, bottom=%i, right=%i", top, left, bottom, right);
+	ASSERT(self);
 
 	// crop rectangle is inclusive
 	// i.e. {0, 0, 0, 0} is a single pixel at {0, 0}
@@ -1874,17 +1951,17 @@ texgz_tex_t* texgz_tex_cropcopy(texgz_tex_t* self, int top, int left, int bottom
 	   (right >= self->width) ||
 	   (bottom >= self->height))
 	{
-		LOGE("invalid top=%i, left=%i, bottom=%i, right=%i", top, left, bottom, right);
+		LOGE("invalid top=%i, left=%i, bottom=%i, right=%i",
+		     top, left, bottom, right);
 		return NULL;
 	}
 
 
 	int width  = right - left + 1;
 	int height = bottom - top + 1;
-	texgz_tex_t* tex = texgz_tex_new(width, height,
-	                                 width, height,
-	                                 self->type, self->format,
-	                                 NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(width, height, width, height,
+	                    self->type, self->format, NULL);
 	if(tex == NULL)
 	{
 		return NULL;
@@ -1896,8 +1973,10 @@ texgz_tex_t* texgz_tex_cropcopy(texgz_tex_t* self, int top, int left, int bottom
 	for(y = 0; y < height; ++y)
 	{
 		int src_y = y + top;
-		unsigned char* src = &self->pixels[src_y*bpp*self->stride];
-		unsigned char* dst = &tex->pixels[y*bpp*width];
+		unsigned char* src;
+		unsigned char* dst;
+		src = &self->pixels[src_y*bpp*self->stride];
+		dst = &tex->pixels[y*bpp*width];
 		memcpy(dst, src, bpp*width);
 	}
 	return tex;
@@ -1905,8 +1984,7 @@ texgz_tex_t* texgz_tex_cropcopy(texgz_tex_t* self, int top, int left, int bottom
 
 int texgz_tex_pad(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	int pot_stride  = texgz_nextpot(self->stride);
 	int pot_vstride = texgz_nextpot(self->vstride);
@@ -1932,8 +2010,7 @@ int texgz_tex_pad(texgz_tex_t* self)
 
 texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	int pot_stride  = texgz_nextpot(self->stride);
 	int pot_vstride = texgz_nextpot(self->vstride);
@@ -1944,10 +2021,10 @@ texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self)
 		return texgz_tex_copy(self);
 	}
 
-	texgz_tex_t* tex = texgz_tex_new(self->width, self->height,
-	                                 pot_stride, pot_vstride,
-	                                 self->type, self->format,
-	                                 NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    pot_stride, pot_vstride,
+	                    self->type, self->format, NULL);
 	if(tex == NULL)
 	{
 		return NULL;
@@ -1967,7 +2044,7 @@ texgz_tex_t* texgz_tex_padcopy(texgz_tex_t* self)
 
 texgz_tex_t* texgz_tex_outline(texgz_tex_t* self, int size)
 {
-	assert(self);
+	ASSERT(self);
 
 	// validate the outline circle
 	int    off     = size/2;
@@ -2017,11 +2094,10 @@ texgz_tex_t* texgz_tex_outline(texgz_tex_t* self, int size)
 	int h2 = self->height + 2*off;
 	int w2r = w2 + (w2%2);
 	int h2r = h2 + (h2%2);
-	texgz_tex_t* tex = texgz_tex_new(w2r, h2r,
-	                                 w2r, h2r,
-	                                 TEXGZ_UNSIGNED_BYTE,
-	                                 TEXGZ_LUMINANCE_ALPHA,
-	                                 NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(w2r, h2r, w2r, h2r,
+	                    TEXGZ_UNSIGNED_BYTE,
+	                    TEXGZ_LUMINANCE_ALPHA, NULL);
 	if(tex == NULL)
 	{
 		return NULL;
@@ -2062,8 +2138,8 @@ int texgz_tex_blit(texgz_tex_t* src, texgz_tex_t* dst,
                    int width, int height,
                    int xs, int ys, int xd, int yd)
 {
-	assert(src);
-	assert(dst);
+	ASSERT(src);
+	ASSERT(dst);
 
 	if((src->type != dst->type) ||
 	   (src->format != dst->format))
@@ -2104,9 +2180,9 @@ void texgz_tex_fill(texgz_tex_t* self,
                     int width, int height,
                     unsigned int color)
 {
-	assert(self);
-	assert(self->type   == TEXGZ_UNSIGNED_BYTE);
-	assert(self->format == TEXGZ_RGBA);
+	ASSERT(self);
+	ASSERT(self->type   == TEXGZ_UNSIGNED_BYTE);
+	ASSERT(self->format == TEXGZ_RGBA);
 
 	if((width  <= 0) || (height <= 0))
 	{
@@ -2143,14 +2219,10 @@ void texgz_tex_fill(texgz_tex_t* self,
 		right = self->width - 1;
 	}
 
-	unsigned char r = (unsigned char)
-	                  ((color >> 24)&0xFF);
-	unsigned char g = (unsigned char)
-	                  ((color >> 16)&0xFF);
-	unsigned char b = (unsigned char)
-	                  ((color >> 8)&0xFF);
-	unsigned char a = (unsigned char)
-	                  (color&0xFF);
+	unsigned char r = (unsigned char) ((color >> 24)&0xFF);
+	unsigned char g = (unsigned char) ((color >> 16)&0xFF);
+	unsigned char b = (unsigned char) ((color >> 8)&0xFF);
+	unsigned char a = (unsigned char) (color&0xFF);
 
 	// fill first scanline
 	int i;
@@ -2172,16 +2244,15 @@ void texgz_tex_fill(texgz_tex_t* self,
 	}
 }
 
-void texgz_tex_sample(texgz_tex_t* self,
-                      float u, float v,
+void texgz_tex_sample(texgz_tex_t* self, float u, float v,
                       int bpp, unsigned char* pixel)
 {
-	assert(self);
-	assert(pixel);
-	assert(self->type == TEXGZ_UNSIGNED_BYTE);
+	ASSERT(self);
+	ASSERT(pixel);
+	ASSERT(self->type == TEXGZ_UNSIGNED_BYTE);
 
-	// skip expensive assert
-	// assert(bpp == texgz_tex_bpp(self));
+	// skip expensive ASSERT
+	// ASSERT(bpp == texgz_tex_bpp(self));
 
 	// "float indices"
 	float pu = u*(self->width  - 1);
@@ -2258,12 +2329,11 @@ void texgz_tex_sample(texgz_tex_t* self,
 	}
 }
 
-int texgz_tex_mipmap(texgz_tex_t* self,
-                     int miplevels,
+int texgz_tex_mipmap(texgz_tex_t* self, int miplevels,
                      texgz_tex_t** mipmaps)
 {
-	assert(self);
-	assert(mipmaps);
+	ASSERT(self);
+	ASSERT(mipmaps);
 
 	// note that mipmaps[0] is self
 
@@ -2302,30 +2372,76 @@ int texgz_tex_mipmap(texgz_tex_t* self,
 
 int texgz_tex_bpp(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	int bpp = 0;   // bytes-per-pixel
-	if     ((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_RGB))       bpp = 3;
-	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_RGBA))      bpp = 4;
-	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_BGRA))      bpp = 4;
-	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_LUMINANCE)) bpp = 1;
-	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_ALPHA))     bpp = 1;
-	else if((self->type == TEXGZ_SHORT)                  && (self->format == TEXGZ_LUMINANCE)) bpp = 2;
-	else if((self->type == TEXGZ_UNSIGNED_BYTE)          && (self->format == TEXGZ_LUMINANCE_ALPHA)) bpp = 2;
-	else if((self->type == TEXGZ_FLOAT)                  && (self->format == TEXGZ_LUMINANCE)) bpp = 4;
-	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_6_5)   && (self->format == TEXGZ_RGB))       bpp = 2;
-	else if((self->type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) && (self->format == TEXGZ_RGBA))      bpp = 2;
-	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) && (self->format == TEXGZ_RGBA))      bpp = 2;
-	else LOGE("invalid type=0x%X, format=0x%X", self->type, self->format);
+	if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	   (self->format == TEXGZ_RGB))
+	{
+		bpp = 3;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_RGBA))
+	{
+		bpp = 4;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_BGRA))
+	{
+		bpp = 4;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_LUMINANCE))
+	{
+		bpp = 1;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_ALPHA))
+	{
+		bpp = 1;
+	}
+	else if((self->type == TEXGZ_SHORT) &&
+	        (self->format == TEXGZ_LUMINANCE))
+	{
+		bpp = 2;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_LUMINANCE_ALPHA))
+	{
+		bpp = 2;
+	}
+	else if((self->type == TEXGZ_FLOAT) &&
+	        (self->format == TEXGZ_LUMINANCE))
+	{
+		bpp = 4;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_6_5) &&
+	        (self->format == TEXGZ_RGB))
+	{
+		bpp = 2;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_SHORT_4_4_4_4) &&
+	        (self->format == TEXGZ_RGBA))
+	{
+		bpp = 2;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_5_5_1) &&
+	        (self->format == TEXGZ_RGBA))
+	{
+		bpp = 2;
+	}
+	else
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+	}
 
 	return bpp;
 }
 
 int texgz_tex_size(texgz_tex_t* self)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
-	return texgz_tex_bpp(self) * self->stride * self->vstride;
+	return texgz_tex_bpp(self)*self->stride*self->vstride;
 }

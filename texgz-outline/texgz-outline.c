@@ -22,13 +22,12 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
-#include <texgz/texgz_tex.h>
-#include <texgz/texgz_png.h>
 
 #define LOG_TAG "texgz"
-#include <texgz/texgz_log.h>
+#include "libcc/cc_log.h"
+#include "texgz/texgz_tex.h"
+#include "texgz/texgz_png.h"
 
 int main(int argc, char** argv)
 {

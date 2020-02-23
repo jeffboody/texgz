@@ -22,25 +22,26 @@
  */
 
 #include <stdlib.h>
-#include <assert.h>
-#include "texgz_png.h"
-#include "../lodepng/lodepng.cpp"
 
 #define LOG_TAG "texgz"
-#include "texgz_log.h"
+#include "../libcc/cc_log.h"
+#include "../libcc/cc_memory.h"
+#include "../lodepng/lodepng.cpp"
+#include "texgz_png.h"
 
 /*
  * private
  */
 
-static int texgz_png_exportRGBA(texgz_tex_t* self, const char* fname)
+static int
+texgz_png_exportRGBA(texgz_tex_t* self, const char* fname)
 {
-	assert(self);
-	assert(fname);
-	LOGD("debug fname=%s", fname);
+	ASSERT(self);
+	ASSERT(fname);
 
 	texgz_tex_t* tex = NULL;
-	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA);
+	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+	                            TEXGZ_RGBA);
 	if(tex == NULL)
 	{
 		return 0;
@@ -65,14 +66,15 @@ static int texgz_png_exportRGBA(texgz_tex_t* self, const char* fname)
 	return 0;
 }
 
-static int texgz_png_exportRGB(texgz_tex_t* self, const char* fname)
+static int
+texgz_png_exportRGB(texgz_tex_t* self, const char* fname)
 {
-	assert(self);
-	assert(fname);
-	LOGD("debug fname=%s", fname);
+	ASSERT(self);
+	ASSERT(fname);
 
 	texgz_tex_t* tex = NULL;
-	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB);
+	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+	                            TEXGZ_RGB);
 	if(tex == NULL)
 	{
 		return 0;
@@ -103,8 +105,7 @@ static int texgz_png_exportRGB(texgz_tex_t* self, const char* fname)
 
 texgz_tex_t* texgz_png_import(const char* fname)
 {
-	assert(fname);
-	LOGD("debug fname=%s", fname);
+	ASSERT(fname);
 
 	unsigned char* img;
 	unsigned w;
@@ -117,14 +118,13 @@ texgz_tex_t* texgz_png_import(const char* fname)
 	}
 
 	texgz_tex_t* self;
-	self = texgz_tex_new(w, h, w, h,
-	                     TEXGZ_UNSIGNED_BYTE,
-	                     TEXGZ_RGBA,
-	                     img);
+	self = texgz_tex_new(w, h, w, h, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA, img);
 	if(self == NULL)
 	{
 		goto fail_tex;
 	}
+	// img allocated by standard C library
 	free(img);
 
 	// success
@@ -132,18 +132,21 @@ texgz_tex_t* texgz_png_import(const char* fname)
 
 	// failure
 	fail_tex:
+		// img allocated by standard C library
 		free(img);
 	return NULL;
 }
 
 texgz_tex_t* texgz_png_importf(FILE* f, size_t size)
 {
-	assert(f);
+	ASSERT(f);
 
-	unsigned char* buf = calloc(size, sizeof(unsigned char));
+	unsigned char* buf;
+	buf = (unsigned char*)
+	      CALLOC(size, sizeof(unsigned char));
 	if(buf == NULL)
 	{
-		LOGE("calloc failed");
+		LOGE("CALLOC failed");
 		return NULL;
 	}
 
@@ -164,34 +167,33 @@ texgz_tex_t* texgz_png_importf(FILE* f, size_t size)
 	}
 
 	texgz_tex_t* self;
-	self = texgz_tex_new(w, h, w, h,
-	                     TEXGZ_UNSIGNED_BYTE,
-	                     TEXGZ_RGBA,
-	                     img);
+	self = texgz_tex_new(w, h, w, h, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA, img);
 	if(self == NULL)
 	{
 		goto fail_tex;
 	}
+	// img allocated by standard C library
 	free(img);
-	free(buf);
+	FREE(buf);
 
 	// success
 	return self;
 
 	// failure
 	fail_tex:
+		// img allocated by standard C library
 		free(img);
 	fail_decode:
 	fail_fread:
-		free(buf);
+		FREE(buf);
 	return NULL;
 }
 
 int texgz_png_export(texgz_tex_t* self, const char* fname)
 {
-	assert(self);
-	assert(fname);
-	LOGD("debug fname=%s", fname);
+	ASSERT(self);
+	ASSERT(fname);
 
 	if(self->format == TEXGZ_RGBA)
 	{

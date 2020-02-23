@@ -21,44 +21,47 @@
  *
  */
 
-#include <stdlib.h>
-#include <assert.h>
 #include <openjpeg.h>
-#include "texgz_jp2.h"
+#include <stdlib.h>
 
 #define LOG_TAG "texgz"
-#include "texgz_log.h"
+#include "libcc/cc_log.h"
+#include "texgz_jp2.h"
 
 /***********************************************************
 * private                                                  *
 ***********************************************************/
 
-static void info_callback(const char *msg, void *client_data)
+static void
+info_callback(const char *msg, void *client_data)
 {
 	// ignore
 }
 
-static void warning_callback(const char *msg, void *client_data)
+static void
+warning_callback(const char *msg, void *client_data)
 {
 	// ignore
 }
 
-static void error_callback(const char *msg, void *client_data)
+static void
+error_callback(const char *msg, void *client_data)
 {
 	// client_data may be NULL
-	assert(msg);
+	ASSERT(msg);
 	LOGE("%s", msg);
 }
 
 static void texgz_jp2_packRGBA(texgz_tex_t* self,
                                opj_image_t* image)
 {
-	assert(self);
-	assert(image);
+	ASSERT(self);
+	ASSERT(image);
 
 	// conversion derived from OpenJPEG convertpng.c
 	int prec = (int) image->comps[0].prec;
-	OPJ_INT32 adjust = image->comps[0].sgnd ? 1 << (prec - 1): 0;
+	OPJ_INT32 adjust;
+	adjust = image->comps[0].sgnd ? 1 << (prec - 1): 0;
 
 	// data pointers
 	OPJ_INT32*     src0 = image->comps[0].data;
@@ -84,12 +87,13 @@ static void texgz_jp2_packRGBA(texgz_tex_t* self,
 static void texgz_jp2_packRGB(texgz_tex_t* self,
                               opj_image_t* image)
 {
-	assert(self);
-	assert(image);
+	ASSERT(self);
+	ASSERT(image);
 
 	// conversion derived from OpenJPEG convertpng.c
 	int prec = (int) image->comps[0].prec;
-	OPJ_INT32 adjust = image->comps[0].sgnd ? 1 << (prec - 1): 0;
+	OPJ_INT32 adjust;
+	adjust = image->comps[0].sgnd ? 1 << (prec - 1): 0;
 
 	// data pointers
 	OPJ_INT32*     src0 = image->comps[0].data;
@@ -116,7 +120,7 @@ static void texgz_jp2_packRGB(texgz_tex_t* self,
 
 texgz_tex_t* texgz_jp2_import(const char* fname)
 {
-	assert(fname);
+	ASSERT(fname);
 
 	opj_stream_t* l_stream;
 	l_stream = opj_stream_create_default_file_stream(fname, 1);

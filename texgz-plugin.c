@@ -21,16 +21,16 @@
  *
  */
 
-#include "texgz_tex.c"
-#include "texgz_log.c"
-#include <string.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
+#include <string.h>
+
+#include "libcc/cc_log.c"
+#include "texgz_tex.c"
 
 static int texgz_isTexz(const gchar *filename)
 {
-	assert(filename);
-	LOGD("debug filename=%s", filename);
+	ASSERT(filename);
 
 	if(strstr(filename, ".texz"))
 	{
@@ -42,8 +42,7 @@ static int texgz_isTexz(const gchar *filename)
 
 static gint32 texgz_import(const gchar *filename)
 {
-	assert(filename);
-	LOGD("debug filename=%s", filename);
+	ASSERT(filename);
 
 	int is_texz = texgz_isTexz(filename);
 
@@ -59,13 +58,16 @@ static gint32 texgz_import(const gchar *filename)
 	if(tex == NULL)
 		return -1;
 
-	if(texgz_tex_convert(tex, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA) == 0)
+	if(texgz_tex_convert(tex, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA) == 0)
 		goto fail_convert;
 
-	if(texgz_tex_crop(tex, 0, 0, tex->height - 1, tex->width - 1) == 0)
+	if(texgz_tex_crop(tex, 0, 0, tex->height - 1,
+	                  tex->width - 1) == 0)
 		goto fail_crop;
 
-	gint32 image_ID = gimp_image_new(tex->stride, tex->vstride, GIMP_RGB);
+	gint32 image_ID = gimp_image_new(tex->stride,
+	                                 tex->vstride, GIMP_RGB);
 	if(image_ID == -1)
 	{
 		LOGE("gimp_image_new failed");
@@ -158,10 +160,10 @@ typedef struct
 	gint pad;
 } texgz_dialog_t;
 
-static gint texgz_export_dialog(texgz_dialog_t* self, int is_texz)
+static gint
+texgz_export_dialog(texgz_dialog_t* self, int is_texz)
 {
-	assert(self);
-	LOGD("debug");
+	ASSERT(self);
 
 	GtkWidget* dialog;
 	if(is_texz)
@@ -198,36 +200,38 @@ static gint texgz_export_dialog(texgz_dialog_t* self, int is_texz)
 
 	gimp_window_set_transient(GTK_WINDOW(dialog));
 
-	GtkWidget* radio_format = gimp_int_radio_group_new(TRUE,
-	                                                   "Format",
-	                                                   G_CALLBACK(gimp_radio_button_update),
-	                                                   &self->format,
-	                                                   8888,
-	                                                   "RGBA-8888",   8888, NULL,
-	                                                   "BGRA-8888",   8889, NULL,
-	                                                   "RGB-565",     565,  NULL,
-	                                                   "RGBA-4444",   4444, NULL,
-	                                                   "RGB-888",     888,  NULL,
-	                                                   "RGBA-5551",   5551, NULL,
-	                                                   "LUMINANCE",   8,    NULL,
-	                                                   "ALPHA",       9,    NULL,
-	                                                   "LUMINANCE-A", 16,   NULL,
-	                                                   "LUMINANCE-F", 0xF,  NULL,
-	                                                   NULL);
+	GtkWidget* radio_format;
+	radio_format = gimp_int_radio_group_new(TRUE,
+	                                        "Format",
+	                                        G_CALLBACK(gimp_radio_button_update),
+	                                        &self->format,
+	                                        8888,
+	                                        "RGBA-8888",   8888, NULL,
+	                                        "BGRA-8888",   8889, NULL,
+	                                        "RGB-565",     565,  NULL,
+	                                        "RGBA-4444",   4444, NULL,
+	                                        "RGB-888",     888,  NULL,
+	                                        "RGBA-5551",   5551, NULL,
+	                                        "LUMINANCE",   8,    NULL,
+	                                        "ALPHA",       9,    NULL,
+	                                        "LUMINANCE-A", 16,   NULL,
+	                                        "LUMINANCE-F", 0xF,  NULL,
+	                                        NULL);
 	if(radio_format == NULL)
 	{
 		LOGE("gimp_int_radio_group_new failed");
 		goto fail_radio_format;
 	}
 
-	GtkWidget* radio_pad = gimp_int_radio_group_new(TRUE,
-	                                                "Pad for power-of-two?",
-	                                                G_CALLBACK(gimp_radio_button_update),
-	                                                &self->pad,
-	                                                0,
-	                                                "No",  0, NULL,
-	                                                "Yes", 1, NULL,
-	                                                NULL);
+	GtkWidget* radio_pad;
+	radio_pad = gimp_int_radio_group_new(TRUE,
+	                                     "Pad for power-of-two?",
+	                                     G_CALLBACK(gimp_radio_button_update),
+	                                     &self->pad,
+	                                     0,
+	                                     "No",  0, NULL,
+	                                     "Yes", 1, NULL,
+	                                     NULL);
 	if(radio_pad == NULL)
 	{
 		LOGE("gimp_int_radio_group_new failed");
@@ -266,10 +270,10 @@ static int texgz_export(const gchar*    filename,
                         gint32          drawable_ID,
                         texgz_dialog_t* dialog)
 {
-	assert(filename);
-	LOGD("debug filename=%s", filename);
+	ASSERT(filename);
 
-	GimpImageType drawable_type = gimp_drawable_type(drawable_ID);
+	GimpImageType drawable_type;
+	drawable_type = gimp_drawable_type(drawable_ID);
 	if(drawable_type != GIMP_RGBA_IMAGE)
 	{
 		LOGE("invalid drawable type");
@@ -346,10 +350,11 @@ static int texgz_export(const gchar*    filename,
 	                    0, 0, drawable->width, drawable->height,
 	                    FALSE, FALSE);
 
-	texgz_tex_t* tex = texgz_tex_new(drawable->width, drawable->height,
-	                                 drawable->width, drawable->height,
-	                                 TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-	                                 NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(drawable->width, drawable->height,
+	                    drawable->width, drawable->height,
+	                    TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+	                    NULL);
 	if(tex == NULL)
 		goto fail_texgz_tex_new;
 
@@ -416,8 +421,6 @@ static void query(void)
 	{
     	{ GIMP_PDB_IMAGE, "image", "Output image" }
 	};
-
-	LOGD("debug");
 
 	gimp_install_procedure("texz-import",
 	                       "https://github.com/jeffboody/texgz",
@@ -486,11 +489,10 @@ static void query(void)
 	gimp_register_save_handler("texgz-export", "texgz", "");
 }
 
-static void run(const gchar *name,
-                gint nparams,
-                const GimpParam* param,
-                gint* nreturn_vals,
-                GimpParam** return_vals)
+static void
+run(const gchar *name, gint nparams,
+    const GimpParam* param, gint* nreturn_vals,
+    GimpParam** return_vals)
 {
 	static GimpParam   s_return_vals[2];
 	gint32             image_ID;
@@ -498,11 +500,10 @@ static void run(const gchar *name,
 	const gchar*       filename;
 	GimpRunMode        run_mode = param[0].data.d_int32;
 
-	assert(name);
-	assert(param);
-	assert(nreturn_vals);
-	assert(return_vals);
-	LOGD("debug name=%s", name);
+	ASSERT(name);
+	ASSERT(param);
+	ASSERT(nreturn_vals);
+	ASSERT(return_vals);
 
 	*nreturn_vals                  = 1;
 	*return_vals                   = s_return_vals;
@@ -537,9 +538,7 @@ static void run(const gchar *name,
 			if(is_texz)
 			{
 				gimp_ui_init("texz-export", FALSE);
-				if(gimp_export_image(&image_ID,
-				                     &drawable_ID,
-				                     "texz",
+				if(gimp_export_image(&image_ID, &drawable_ID, "texz",
 				                     GIMP_EXPORT_CAN_HANDLE_RGB |
 				                     GIMP_EXPORT_NEEDS_ALPHA
 				                    ) == GIMP_EXPORT_CANCEL)
@@ -552,9 +551,7 @@ static void run(const gchar *name,
 			else
 			{
 				gimp_ui_init("texgz-export", FALSE);
-				if(gimp_export_image(&image_ID,
-				                     &drawable_ID,
-				                     "texgz",
+				if(gimp_export_image(&image_ID, &drawable_ID, "texgz",
 				                     GIMP_EXPORT_CAN_HANDLE_RGB |
 				                     GIMP_EXPORT_NEEDS_ALPHA
 				                    ) == GIMP_EXPORT_CANCEL)

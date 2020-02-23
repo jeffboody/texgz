@@ -22,22 +22,20 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #if defined(ANDROID) || defined(__APPLE__)
 	#include "../jpeg/jpeglib.h"
 #else
 	#include <jpeglib.h>
 #endif
-#include <stdlib.h>
-#include <assert.h>
-#include "texgz_jpeg.h"
 
 #define LOG_TAG "texgz"
-#include "texgz_log.h"
+#include "../libcc/cc_log.h"
+#include "texgz_jpeg.h"
 
 texgz_tex_t* texgz_jpeg_import(const char* fname)
 {
-	assert(fname);
-	LOGD("debug fname=%s", fname);
+	ASSERT(fname);
 
 	FILE *f = fopen(fname, "r");
 	if(f == NULL)
@@ -65,8 +63,7 @@ texgz_tex_t* texgz_jpeg_import(const char* fname)
 
 texgz_tex_t* texgz_jpeg_importf(FILE* f)
 {
-	assert(f);
-	LOGD("debug");
+	ASSERT(f);
 
 	// start decompressing the jpeg
 	struct jpeg_decompress_struct cinfo;
@@ -98,10 +95,11 @@ texgz_tex_t* texgz_jpeg_importf(FILE* f)
 	}
 
 	// create the texgz tex
-	texgz_tex_t* tex = texgz_tex_new(cinfo.image_width, cinfo.image_height,
-	                                 cinfo.image_width, cinfo.image_height,
-	                                 TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
-	                                 NULL);
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(cinfo.image_width, cinfo.image_height,
+	                    cinfo.image_width, cinfo.image_height,
+	                    TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
+	                    NULL);
 	if(tex == NULL)
 	{
 		goto fail_tex;
@@ -137,9 +135,8 @@ texgz_tex_t* texgz_jpeg_importf(FILE* f)
 
 int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 {
-	assert(self);
-	assert(fname);
-	LOGD("debug fname=%s", fname);
+	ASSERT(self);
+	ASSERT(fname);
 
 	// convert to RGB888 and crop
 	int delete_tex = 0;
@@ -149,14 +146,16 @@ int texgz_jpeg_export(texgz_tex_t* self, const char* fname)
 	   (tex->width  != tex->stride)         ||
 	   (tex->height != tex->vstride))
 	{
-		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB);
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+		                            TEXGZ_RGB);
 		if(tex == NULL)
 		{
 			return 0;
 		}
 		delete_tex = 1;
 
-		if(texgz_tex_crop(tex, 0, 0, tex->height - 1, tex->width - 1) == 0)
+		if(texgz_tex_crop(tex, 0, 0, tex->height - 1,
+		                  tex->width - 1) == 0)
 		{
 			goto fail_tex;
 		}
