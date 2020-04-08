@@ -38,12 +38,15 @@
 #define TEXGZ_FLOAT                  0x1406
 
 // OpenGL ES format
+// RG00 is a meta format which is only used to convert LA
+// to RGBA for when RG88 isn't supported by a Vulkan device
 #define TEXGZ_RGB             0x1907
 #define TEXGZ_RGBA            0x1908
 #define TEXGZ_BGRA            0x80E1
 #define TEXGZ_ALPHA           0x1906
 #define TEXGZ_LUMINANCE       0x1909
 #define TEXGZ_LUMINANCE_ALPHA 0x190A
+#define TEXGZ_RG00            0x9999
 
 typedef struct
 {

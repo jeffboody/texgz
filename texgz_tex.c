@@ -494,6 +494,45 @@ static texgz_tex_t* texgz_tex_LAto8888(texgz_tex_t* self)
 	return tex;
 }
 
+static texgz_tex_t* texgz_tex_LAto8800(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_LUMINANCE_ALPHA))
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
+	if(tex == NULL)
+		return NULL;
+
+	int x, y, idx;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = y*tex->stride + x;
+			unsigned char* src = &self->pixels[2*idx];
+			unsigned char* dst = &tex->pixels[4*idx];
+
+			dst[0] = src[0];
+			dst[1] = src[1];
+			dst[2] = 0;
+			dst[3] = 0;
+		}
+	}
+
+	return tex;
+}
+
 static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
 {
 	ASSERT(self);
@@ -1798,7 +1837,17 @@ texgz_tex_convertcopy(texgz_tex_t* self, int type,
 		tmp = texgz_tex_Ato8888(self);
 	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
 	        (self->format == TEXGZ_LUMINANCE_ALPHA))
-		tmp = texgz_tex_LAto8888(self);
+	{
+		if(format == TEXGZ_RG00)
+		{
+			tmp    = texgz_tex_LAto8800(self);
+			format = TEXGZ_RGBA;
+		}
+		else
+		{
+			tmp = texgz_tex_LAto8888(self);
+		}
+	}
 	else if((self->type == TEXGZ_FLOAT) &&
 	        (self->format == TEXGZ_LUMINANCE))
 		tmp = texgz_tex_Fto8888(self);
