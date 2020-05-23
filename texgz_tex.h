@@ -91,6 +91,12 @@ void         texgz_tex_fill(texgz_tex_t* self,
 void         texgz_tex_sample(texgz_tex_t* self,
                               float u, float v,
                               int bpp, unsigned char* pixel);
+void         texgz_tex_getPixel(texgz_tex_t* self,
+                                int x, int y,
+                                unsigned char* pixel);
+void         texgz_tex_setPixel(texgz_tex_t* self,
+                                int x, int y,
+                                unsigned char* pixel);
 int          texgz_tex_mipmap(texgz_tex_t* self,
                               int miplevels,
                               texgz_tex_t** mipmaps);

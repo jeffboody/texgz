@@ -2378,6 +2378,63 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 	}
 }
 
+void texgz_tex_getPixel(texgz_tex_t* self,
+                        int x, int y,
+                        unsigned char* pixel)
+{
+	ASSERT(self);
+	ASSERT(pixel);
+	ASSERT(self->type == TEXGZ_UNSIGNED_BYTE);
+	ASSERT((self->format == TEXGZ_RGB) ||
+	       (self->format == TEXGZ_RGBA));
+
+	int idx;
+	if(self->format == TEXGZ_RGB)
+	{
+		idx      = 3*(y*self->stride + x);
+		pixel[0] = self->pixels[idx];
+		pixel[1] = self->pixels[idx + 1];
+		pixel[2] = self->pixels[idx + 2];
+		pixel[3] = 0xFF;
+	}
+	else
+	{
+		idx      = 4*(y*self->stride + x);
+		pixel[0] = self->pixels[idx];
+		pixel[1] = self->pixels[idx + 1];
+		pixel[2] = self->pixels[idx + 2];
+		pixel[3] = self->pixels[idx + 3];
+	}
+}
+
+void texgz_tex_setPixel(texgz_tex_t* self,
+                        int x, int y,
+                        unsigned char* pixel)
+{
+	ASSERT(self);
+	ASSERT(pixel);
+	ASSERT(self->type == TEXGZ_UNSIGNED_BYTE);
+	ASSERT((self->format == TEXGZ_RGB) ||
+	       (self->format == TEXGZ_RGBA));
+
+	int idx;
+	if(self->format == TEXGZ_RGB)
+	{
+		idx = 3*(y*self->stride + x);
+		self->pixels[idx]     = pixel[0];
+		self->pixels[idx + 1] = pixel[1];
+		self->pixels[idx + 2] = pixel[2];
+	}
+	else
+	{
+		idx = 4*(y*self->stride + x);
+		self->pixels[idx]     = pixel[0];
+		self->pixels[idx + 1] = pixel[1];
+		self->pixels[idx + 2] = pixel[2];
+		self->pixels[idx + 3] = pixel[3];
+	}
+}
+
 int texgz_tex_mipmap(texgz_tex_t* self, int miplevels,
                      texgz_tex_t** mipmaps)
 {
