@@ -57,8 +57,6 @@ texgz_png_exportRGBA(texgz_tex_t* self, const char* fname)
 	}
 	texgz_tex_delete(&tex);
 
-	LOGI("fname=%s", fname);
-
 	// success
 	return 1;
 
@@ -91,8 +89,6 @@ texgz_png_exportRGB(texgz_tex_t* self, const char* fname)
 		goto fail_encode;
 	}
 	texgz_tex_delete(&tex);
-
-	LOGI("fname=%s", fname);
 
 	// success
 	return 1;
