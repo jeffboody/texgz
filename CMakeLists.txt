@@ -5,7 +5,7 @@ add_compile_options(-Wall)
 
 if(TEXGZ_USE_PNG)
     set(SOURCE_PNG
-        texgz_lodepng.c)
+        texgz_png.c)
 endif()
 
 if(TEXGZ_USE_JPEG)

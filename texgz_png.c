@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Jeff Boody
+ * Copyright (c) 2015 Jeff Boody
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,44 +21,123 @@
  *
  */
 
-#include <png.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #define LOG_TAG "texgz"
 #include "../libcc/cc_log.h"
+#include "../libcc/cc_memory.h"
+#include "../lodepng/lodepng.cpp"
 #include "texgz_png.h"
 
-#ifndef png_jmpbuf
-#define png_jmpbuf(png_ptr) ((png_ptr)->jmpbuf)
-#endif
+/*
+ * private
+ */
+
+static int
+texgz_png_exportRGBA(texgz_tex_t* self, const char* fname)
+{
+	ASSERT(self);
+	ASSERT(fname);
+
+	texgz_tex_t* tex = NULL;
+	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+	                            TEXGZ_RGBA);
+	if(tex == NULL)
+	{
+		return 0;
+	}
+
+	unsigned err;
+	err = lodepng_encode32_file(fname, tex->pixels,
+	                            tex->stride, tex->vstride);
+	if(err)
+	{
+		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
+		goto fail_encode;
+	}
+	texgz_tex_delete(&tex);
+
+	LOGI("fname=%s", fname);
+
+	// success
+	return 1;
+
+	// failure
+	fail_encode:
+		texgz_tex_delete(&tex);
+	return 0;
+}
+
+static int
+texgz_png_exportRGB(texgz_tex_t* self, const char* fname)
+{
+	ASSERT(self);
+	ASSERT(fname);
+
+	texgz_tex_t* tex = NULL;
+	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+	                            TEXGZ_RGB);
+	if(tex == NULL)
+	{
+		return 0;
+	}
+
+	unsigned err;
+	err = lodepng_encode24_file(fname, tex->pixels,
+	                            tex->stride, tex->vstride);
+	if(err)
+	{
+		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
+		goto fail_encode;
+	}
+	texgz_tex_delete(&tex);
+
+	LOGI("fname=%s", fname);
+
+	// success
+	return 1;
+
+	// failure
+	fail_encode:
+		texgz_tex_delete(&tex);
+	return 0;
+}
+
+/*
+ * public
+ */
 
 texgz_tex_t* texgz_png_import(const char* fname)
 {
 	ASSERT(fname);
 
-	FILE* f = fopen(fname, "r");
-	if(f == NULL)
+	unsigned char* img;
+	unsigned w;
+	unsigned h;
+	unsigned err = lodepng_decode32_file(&img, &w, &h, fname);
+	if(err)
 	{
-		LOGE("fopen failed for %s", fname);
+		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
 		return NULL;
 	}
 
-	// size is only used by lodepng
-	texgz_tex_t* tex = texgz_png_importf(f, 0);
-	if(tex == NULL)
+	texgz_tex_t* self;
+	self = texgz_tex_new(w, h, w, h, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA, img);
+	if(self == NULL)
 	{
-		goto fail_importf;
+		goto fail_tex;
 	}
-
-	fclose(f);
+	// img allocated by standard C library
+	free(img);
 
 	// success
-	return tex;
+	return self;
 
 	// failure
-	fail_importf:
-		fclose(f);
+	fail_tex:
+		// img allocated by standard C library
+		free(img);
 	return NULL;
 }
 
@@ -66,161 +145,52 @@ texgz_tex_t* texgz_png_importf(FILE* f, size_t size)
 {
 	ASSERT(f);
 
-	// size is only used by lodepng
-
-	unsigned char sig[8];
-	if(fread(sig, 1, 8, f) != 8)
+	unsigned char* buf;
+	buf = (unsigned char*)
+	      CALLOC(size, sizeof(unsigned char));
+	if(buf == NULL)
 	{
-		LOGE("fread failed");
+		LOGE("CALLOC failed");
 		return NULL;
 	}
 
-	if(png_sig_cmp(sig, 0, 8))
+	if(fread(buf, size*sizeof(unsigned char), 1, f) != 1)
 	{
-		LOGE("png_sig_cmp failed");
-		goto fail_sig;
+		LOGE("fread failed");
+		goto fail_fread;
 	}
 
-	png_info*   info_ptr  = NULL;
-	png_structp png_ptr;
-	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-	                                 NULL, NULL, NULL);
-	if(png_ptr == NULL)
+	unsigned char* img;
+	unsigned w;
+	unsigned h;
+	unsigned err = lodepng_decode32(&img, &w, &h, buf, size);
+	if(err)
 	{
-		LOGE("png_create_read_struct failed");
-		goto fail_read;
+		LOGE("invalid %s", lodepng_error_text(err));
+		goto fail_decode;
 	}
 
-	info_ptr = png_create_info_struct(png_ptr);
-	if(info_ptr == NULL)
-	{
-		LOGE("png_create_info_struct failed");
-		goto fail_info;
-	}
-
-	if(setjmp(png_jmpbuf(png_ptr)))
-	{
-		LOGE("png_jmpbuf failed");
-		goto fail_jmpbuf;
-	}
-
-	png_init_io(png_ptr, f);
-	png_set_sig_bytes(png_ptr, 8);
-	png_read_info(png_ptr, info_ptr);
-
-	png_uint_32 width;
-	png_uint_32 height;
-	int         bit_depth;
-	int         color_type;
-	if(png_get_IHDR(png_ptr, info_ptr,
-	                &width, &height,
-	                &bit_depth, &color_type,
-	                NULL, NULL, NULL) == 0)
-	{
-		LOGE("png_get_IHDR");
-		goto fail_get_IHDR;
-	}
-
-	if(color_type == PNG_COLOR_TYPE_PALETTE)
-	{
-		png_set_palette_to_rgb(png_ptr);
-
-		if(png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
-		{
-			png_set_tRNS_to_alpha(png_ptr);
-		}
-
-		png_read_update_info(png_ptr, info_ptr);
-
-		if(png_get_IHDR(png_ptr, info_ptr,
-		                &width, &height,
-		                &bit_depth, &color_type,
-		                NULL, NULL, NULL) == 0)
-		{
-			LOGE("png_get_IHDR");
-			goto fail_get_IHDR;
-		}
-	}
-
-	if(bit_depth != 8)
-	{
-		LOGE("invalid bit_depth=%i", bit_depth);
-		goto fail_bit_depth;
-	}
-
-	texgz_tex_t* tex = NULL;
-	int stride_bytes;
-	stride_bytes = (int) png_get_rowbytes(png_ptr, info_ptr);
-	if(color_type == PNG_COLOR_TYPE_RGB_ALPHA)
-	{
-		int stride = stride_bytes / 4;
-		if(stride_bytes % 4 != 0)
-		{
-			LOGE("invalid stride_bytes=%i", stride_bytes);
-			goto fail_stride;
-		}
-
-		tex = texgz_tex_new((int) width, (int) height,
-		                    stride, (int) height,
-		                    TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
-		                    NULL);
-	}
-	else if(color_type == PNG_COLOR_TYPE_RGB)
-	{
-		int stride = stride_bytes / 3;
-		if(stride_bytes % 3 != 0)
-		{
-			LOGE("invalid stride_bytes=%i", stride_bytes);
-			goto fail_stride;
-		}
-
-		tex = texgz_tex_new((int) width, (int) height,
-		                    stride, (int) height,
-		                    TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
-		                    NULL);
-	}
-	else if(color_type == PNG_COLOR_TYPE_GRAY)
-	{
-		int stride = stride_bytes;
-		tex = texgz_tex_new((int) width, (int) height,
-		                    stride, (int) height,
-		                    TEXGZ_UNSIGNED_BYTE, TEXGZ_ALPHA,
-		                    NULL);
-	}
-	else
-	{
-		LOGE("invalid color_type=%i", color_type);
-	}
-
-	if(tex == NULL)
+	texgz_tex_t* self;
+	self = texgz_tex_new(w, h, w, h, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA, img);
+	if(self == NULL)
 	{
 		goto fail_tex;
 	}
-
-	int i;
-	unsigned char* pixels = tex->pixels;
-	for(i = 0; i < tex->height; ++i)
-	{
-		png_read_row(png_ptr, pixels, NULL);
-		pixels += stride_bytes;
-	}
-
-	png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+	// img allocated by standard C library
+	free(img);
+	FREE(buf);
 
 	// success
-	return tex;
+	return self;
 
 	// failure
 	fail_tex:
-	fail_stride:
-	fail_bit_depth:
-	fail_get_IHDR:
-	fail_jmpbuf:
-	fail_info:
-		png_destroy_read_struct(&png_ptr, info_ptr ?
-		                        &info_ptr : NULL, NULL);
-	fail_read:
-	fail_sig:
+		// img allocated by standard C library
+		free(img);
+	fail_decode:
+	fail_fread:
+		FREE(buf);
 	return NULL;
 }
 
@@ -229,112 +199,9 @@ int texgz_png_export(texgz_tex_t* self, const char* fname)
 	ASSERT(self);
 	ASSERT(fname);
 
-	FILE* f = fopen(fname, "w");
-	if(f == NULL)
-	{
-		LOGE("fopen failed for %s", fname);
-		return 0;
-	}
-
-	png_infop   info_ptr  = NULL;
-	png_structp png_ptr;
-	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
-	                                  NULL, NULL, NULL);
-	if(png_ptr == NULL)
-	{
-		LOGE("png_create_write_struct failed");
-		goto fail_write;
-	}
-
-	info_ptr = png_create_info_struct(png_ptr);
-	if(info_ptr == NULL)
-	{
-		LOGE("png_create_info_struct failed");
-		goto fail_info;
-	}
-
-	if(setjmp(png_jmpbuf(png_ptr)))
-	{
-		LOGE("png_jmpbuf failed");
-		goto fail_jmpbuf;
-	}
-
-	png_init_io(png_ptr, f);
-
-	int color_type;
-	texgz_tex_t* tex = NULL;
 	if(self->format == TEXGZ_RGBA)
 	{
-		color_type = PNG_COLOR_TYPE_RGB_ALPHA;
-		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-		                            TEXGZ_RGBA);
+		return texgz_png_exportRGBA(self, fname);
 	}
-	else if(self->format == TEXGZ_RGB)
-	{
-		color_type = PNG_COLOR_TYPE_RGB;
-		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-		                            TEXGZ_RGB);
-	}
-	else if(self->format == TEXGZ_LUMINANCE)
-	{
-		color_type = PNG_COLOR_TYPE_GRAY;
-		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-		                            TEXGZ_LUMINANCE);
-	}
-	else if(self->format == TEXGZ_ALPHA)
-	{
-		color_type = PNG_COLOR_TYPE_GRAY;
-		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-		                            TEXGZ_ALPHA);
-	}
-	else
-	{
-		LOGE("invalid format=0x%X", self->format);
-	}
-
-	if(tex == NULL)
-	{
-		goto fail_tex;
-	}
-
-	if(texgz_tex_crop(tex, 0, 0, tex->height - 1,
-	                  tex->width - 1) == 0)
-	{
-		goto fail_crop;
-	}
-
-	png_set_IHDR(png_ptr, info_ptr, tex->width, tex->height, 8,
-	             color_type, PNG_INTERLACE_NONE,
-	             PNG_COMPRESSION_TYPE_DEFAULT,
-	             PNG_FILTER_TYPE_DEFAULT);
-	png_write_info(png_ptr, info_ptr);
-
-	int i;
-	unsigned char* pixels = tex->pixels;
-	int bpp               = texgz_tex_bpp(tex);
-	int stride_bytes      = bpp*tex->stride;
-	for(i = 0; i < tex->height; ++i)
-	{
-		png_write_row(png_ptr, pixels);
-		pixels += stride_bytes;
-	}
-
-	texgz_tex_delete(&tex);
-	png_destroy_write_struct(&png_ptr, &info_ptr);
-	fclose(f);
-
-	// success
-	return 1;
-
-	// failure
-	fail_crop:
-		texgz_tex_delete(&tex);
-	fail_tex:
-	fail_jmpbuf:
-	fail_info:
-		png_destroy_write_struct(&png_ptr, info_ptr ?
-		                         &info_ptr : NULL);
-	fail_write:
-		fclose(f);
-	return 0;
+	return texgz_png_exportRGB(self, fname);
 }

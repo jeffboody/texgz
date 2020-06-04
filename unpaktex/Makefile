@@ -5,7 +5,7 @@ OBJECTS  = $(TARGET).o $(CLASSES:%=%.o)
 HFILES   = $(CLASSES:%=%.h)
 OPT      = -O2 -Wall
 CFLAGS   = $(OPT) -I.
-LDFLAGS  = -Llibpak -lpak -Ltexgz -ltexgz -Llibcc -lcc -lpng -ljpeg -lz
+LDFLAGS  = -Llibpak -lpak -Ltexgz -ltexgz -Llibcc -lcc -ljpeg -lz
 CCC      = gcc
 
 all: $(TARGET)

@@ -5,7 +5,7 @@ OBJECTS = $(TARGET).o $(CLASSES:%=%.o)
 HFILES  = $(CLASSES:%=%.h)
 OPT     = -O2 -Wall
 CFLAGS  = $(OPT) -I.
-LDFLAGS = -Ltexgz -ltexgz -Llibcc -lcc -lpng -lz
+LDFLAGS = -Ltexgz -ltexgz -Llibcc -lcc -lz
 CCC     = gcc
 ifeq ($(TEXGZ_USE_JP2),1)
 	CFLAGS  += -DTEXGZ_USE_JP2

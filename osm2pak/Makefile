@@ -6,7 +6,7 @@ HFILES   = $(CLASSES:%=%.h)
 OPT      = -O2 -Wall
 #OPT      = -g -Wall
 CFLAGS   = $(OPT) -I.
-LDFLAGS  = -Llibpak -lpak -Ltexgz -ltexgz -Llibcc -lcc -lpng -lm -lz
+LDFLAGS  = -Llibpak -lpak -Ltexgz -ltexgz -Llibcc -lcc -lm -lz
 CCC      = gcc
 
 all: $(TARGET)
