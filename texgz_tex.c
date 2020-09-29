@@ -1374,6 +1374,48 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 	return NULL;
 }
 
+texgz_tex_t* texgz_tex_resize(texgz_tex_t* self,
+                              int width,
+                              int height)
+{
+	ASSERT(self);
+	ASSERT(self->type == TEXGZ_UNSIGNED_BYTE);
+	ASSERT((self->format == TEXGZ_RGB) ||
+	       (self->format == TEXGZ_RGBA));
+
+	texgz_tex_t* copy;
+	copy = texgz_tex_new(width, height,
+	                     width, height,
+	                     self->type, self->format,
+	                     NULL);
+	if(copy == NULL)
+	{
+		return NULL;
+	}
+
+	int bpp = texgz_tex_bpp(self);
+
+	int   i;
+	int   j;
+	float u;
+	float v;
+	float w = (float) width + 1;
+	float h = (float) height + 1;
+	unsigned char pixel[4];
+	for(i = 0; i < height; ++i)
+	{
+		for(j = 0; j < width; ++j)
+		{
+			u = (j + 1)/w;
+			v = (i + 1)/h;
+			texgz_tex_sample(self, u, v, bpp, pixel);
+			texgz_tex_setPixel(copy, j, i, pixel);
+		}
+	}
+
+	return copy;
+}
+
 texgz_tex_t* texgz_tex_import(const char* filename)
 {
 	ASSERT(filename);

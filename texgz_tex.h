@@ -66,6 +66,9 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 void         texgz_tex_delete(texgz_tex_t** _self);
 texgz_tex_t* texgz_tex_copy(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self);
+texgz_tex_t* texgz_tex_resize(texgz_tex_t* self,
+                              int width,
+                              int height);
 texgz_tex_t* texgz_tex_import(const char* filename);
 texgz_tex_t* texgz_tex_importz(const char* filename);
 texgz_tex_t* texgz_tex_importf(FILE* f, int size);
