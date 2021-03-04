@@ -27,8 +27,10 @@
 #include "texgz_tex.h"
 #include <stdio.h>
 
-texgz_tex_t* texgz_jpeg_import(const char* fname);
-texgz_tex_t* texgz_jpeg_importf(FILE* f);
-int          texgz_jpeg_export(texgz_tex_t* self, const char* fname);
+texgz_tex_t* texgz_jpeg_import(const char* fname,
+                               int format);
+texgz_tex_t* texgz_jpeg_importf(FILE* f, int format);
+int          texgz_jpeg_export(texgz_tex_t* self,
+                               const char* fname);
 
 #endif

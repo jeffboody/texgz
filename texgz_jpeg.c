@@ -33,7 +33,41 @@
 #include "../libcc/cc_log.h"
 #include "texgz_jpeg.h"
 
-texgz_tex_t* texgz_jpeg_import(const char* fname)
+/***********************************************************
+* private                                                  *
+***********************************************************/
+
+static void texgz_jpeg_rgb2rgba(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	unsigned char* pixels = self->pixels;
+
+	int i;
+	int j;
+	int width  = self->width;
+	int height = self->height;
+	int stride = 4*width;
+	for(i = 0; i < height; ++i)
+	{
+		for(j = width - 1; j >= 0; --j)
+		{
+			pixels[4*j]     = pixels[3*j];
+			pixels[4*j + 1] = pixels[3*j + 1];
+			pixels[4*j + 2] = pixels[3*j + 2];
+			pixels[4*j + 3] = 0xFF;
+		}
+
+		pixels += stride;
+	}
+}
+
+/***********************************************************
+* public                                                   *
+***********************************************************/
+
+texgz_tex_t*
+texgz_jpeg_import(const char* fname, int format)
 {
 	ASSERT(fname);
 
@@ -44,7 +78,7 @@ texgz_tex_t* texgz_jpeg_import(const char* fname)
 		return NULL;
 	}
 
-	texgz_tex_t* tex = texgz_jpeg_importf(f);
+	texgz_tex_t* tex = texgz_jpeg_importf(f, format);
 	if(tex == NULL)
 	{
 		goto fail_tex;
@@ -61,9 +95,11 @@ texgz_tex_t* texgz_jpeg_import(const char* fname)
 	return NULL;
 }
 
-texgz_tex_t* texgz_jpeg_importf(FILE* f)
+texgz_tex_t* texgz_jpeg_importf(FILE* f, int format)
 {
 	ASSERT(f);
+	ASSERT((format == TEXGZ_RGB) ||
+	       (format == TEXGZ_RGBA));
 
 	// start decompressing the jpeg
 	struct jpeg_decompress_struct cinfo;
@@ -98,7 +134,7 @@ texgz_tex_t* texgz_jpeg_importf(FILE* f)
 	texgz_tex_t* tex;
 	tex = texgz_tex_new(cinfo.image_width, cinfo.image_height,
 	                    cinfo.image_width, cinfo.image_height,
-	                    TEXGZ_UNSIGNED_BYTE, TEXGZ_RGB,
+	                    TEXGZ_UNSIGNED_BYTE, format,
 	                    NULL);
 	if(tex == NULL)
 	{
@@ -106,7 +142,8 @@ texgz_tex_t* texgz_jpeg_importf(FILE* f)
 	}
 
 	unsigned char* pixels = tex->pixels;
-	int stride_bytes = cinfo.image_width*cinfo.num_components;
+	int stride_bytes3 = 3*cinfo.image_width;
+	int stride_bytes4 = 4*cinfo.image_width;
 	while(cinfo.output_scanline < cinfo.image_height)
 	{
 		if(jpeg_read_scanlines(&cinfo, &pixels, 1) != 1)
@@ -114,10 +151,25 @@ texgz_tex_t* texgz_jpeg_importf(FILE* f)
 			LOGE("jpeg_read_scanlines failed");
 			goto fail_scanline;
 		}
-		pixels += stride_bytes;
+
+		if(format == TEXGZ_RGBA)
+		{
+			pixels += stride_bytes4;
+		}
+		else
+		{
+			pixels += stride_bytes3;
+		}
 	}
+
 	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
+
+	// adjust pixels for RGBA
+	if(format == TEXGZ_RGBA)
+	{
+		texgz_jpeg_rgb2rgba(tex);
+	}
 
 	// success
 	return tex;
