@@ -62,6 +62,90 @@ static void texgz_jpeg_rgb2rgba(texgz_tex_t* self)
 	}
 }
 
+static texgz_tex_t*
+texgz_jpeg_importj(struct jpeg_decompress_struct* cinfo,
+                   int format)
+{
+	ASSERT(cinfo);
+	ASSERT((format == TEXGZ_RGB) ||
+	       (format == TEXGZ_RGBA));
+
+	// start decompressing the jpeg
+	if(jpeg_read_header(cinfo, TRUE) != JPEG_HEADER_OK)
+	{
+		LOGE("jpeg_read_header failed");
+		return NULL;
+	}
+	jpeg_start_decompress(cinfo);
+
+	// check for errors
+	if((cinfo->num_components == 3) &&
+	   (cinfo->image_width == cinfo->output_width) &&
+	   (cinfo->image_height == cinfo->output_height))
+	{
+		// ok
+	}
+	else
+	{
+		LOGE("invalid num_components=%i, image=%ix%i, output=%ix%i",
+		     cinfo->num_components,
+		     cinfo->image_width, cinfo->image_height,
+		     cinfo->output_width, cinfo->output_height);
+		goto fail_format;
+	}
+
+	// create the texgz tex
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(cinfo->image_width, cinfo->image_height,
+	                    cinfo->image_width, cinfo->image_height,
+	                    TEXGZ_UNSIGNED_BYTE, format,
+	                    NULL);
+	if(tex == NULL)
+	{
+		goto fail_tex;
+	}
+
+	unsigned char* pixels = tex->pixels;
+	int stride_bytes3 = 3*cinfo->image_width;
+	int stride_bytes4 = 4*cinfo->image_width;
+	while(cinfo->output_scanline < cinfo->image_height)
+	{
+		if(jpeg_read_scanlines(cinfo, &pixels, 1) != 1)
+		{
+			LOGE("jpeg_read_scanlines failed");
+			goto fail_scanline;
+		}
+
+		if(format == TEXGZ_RGBA)
+		{
+			pixels += stride_bytes4;
+		}
+		else
+		{
+			pixels += stride_bytes3;
+		}
+	}
+
+	jpeg_finish_decompress(cinfo);
+
+	// adjust pixels for RGBA
+	if(format == TEXGZ_RGBA)
+	{
+		texgz_jpeg_rgb2rgba(tex);
+	}
+
+	// success
+	return tex;
+
+	// failure
+	fail_scanline:
+		texgz_tex_delete(&tex);
+	fail_tex:
+	fail_format:
+		jpeg_finish_decompress(cinfo);
+	return NULL;
+}
+
 /***********************************************************
 * public                                                   *
 ***********************************************************/
@@ -70,6 +154,8 @@ texgz_tex_t*
 texgz_jpeg_import(const char* fname, int format)
 {
 	ASSERT(fname);
+	ASSERT((format == TEXGZ_RGB) ||
+	       (format == TEXGZ_RGBA));
 
 	FILE *f = fopen(fname, "r");
 	if(f == NULL)
@@ -98,89 +184,59 @@ texgz_jpeg_import(const char* fname, int format)
 texgz_tex_t* texgz_jpeg_importf(FILE* f, int format)
 {
 	ASSERT(f);
-	ASSERT((format == TEXGZ_RGB) ||
-	       (format == TEXGZ_RGBA));
 
-	// start decompressing the jpeg
+	// create file decompressor
 	struct jpeg_decompress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	cinfo.err = jpeg_std_error(&jerr);
 	jpeg_create_decompress(&cinfo);
 	jpeg_stdio_src(&cinfo, f);
-	if(jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK)
-	{
-		LOGE("jpeg_read_header failed");
-		goto fail_header;
-	}
-	jpeg_start_decompress(&cinfo);
 
-	// check for errors
-	if((cinfo.num_components == 3) &&
-	   (cinfo.image_width == cinfo.output_width) &&
-	   (cinfo.image_height == cinfo.output_height))
+	texgz_tex_t* self;
+	self = texgz_jpeg_importj(&cinfo, format);
+	if(self == NULL)
 	{
-		// ok
-	}
-	else
-	{
-		LOGE("invalid num_components=%i, image=%ix%i, output=%ix%i",
-		     cinfo.num_components,
-		     cinfo.image_width, cinfo.image_height,
-		     cinfo.output_width, cinfo.output_height);
-		goto fail_format;
+		goto fail_import;
 	}
 
-	// create the texgz tex
-	texgz_tex_t* tex;
-	tex = texgz_tex_new(cinfo.image_width, cinfo.image_height,
-	                    cinfo.image_width, cinfo.image_height,
-	                    TEXGZ_UNSIGNED_BYTE, format,
-	                    NULL);
-	if(tex == NULL)
-	{
-		goto fail_tex;
-	}
-
-	unsigned char* pixels = tex->pixels;
-	int stride_bytes3 = 3*cinfo.image_width;
-	int stride_bytes4 = 4*cinfo.image_width;
-	while(cinfo.output_scanline < cinfo.image_height)
-	{
-		if(jpeg_read_scanlines(&cinfo, &pixels, 1) != 1)
-		{
-			LOGE("jpeg_read_scanlines failed");
-			goto fail_scanline;
-		}
-
-		if(format == TEXGZ_RGBA)
-		{
-			pixels += stride_bytes4;
-		}
-		else
-		{
-			pixels += stride_bytes3;
-		}
-	}
-
-	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
 
-	// adjust pixels for RGBA
-	if(format == TEXGZ_RGBA)
-	{
-		texgz_jpeg_rgb2rgba(tex);
-	}
-
 	// success
-	return tex;
+	return self;
 
 	// failure
-	fail_scanline:
-		texgz_tex_delete(&tex);
-	fail_tex:
-	fail_format:
-		jpeg_finish_decompress(&cinfo);
-	fail_header:
+	fail_import:
+		jpeg_destroy_decompress(&cinfo);
+	return NULL;
+}
+
+texgz_tex_t*
+texgz_jpeg_importd(size_t size, const void* data,
+                   int format)
+{
+	ASSERT(data);
+
+	// create memory decompressor
+	struct jpeg_decompress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	cinfo.err = jpeg_std_error(&jerr);
+	jpeg_create_decompress(&cinfo);
+	jpeg_mem_src(&cinfo, data, size);
+
+	texgz_tex_t* self;
+	self = texgz_jpeg_importj(&cinfo, format);
+	if(self == NULL)
+	{
+		goto fail_import;
+	}
+
+	jpeg_destroy_decompress(&cinfo);
+
+	// success
+	return self;
+
+	// failure
+	fail_import:
 		jpeg_destroy_decompress(&cinfo);
 	return NULL;
 }
