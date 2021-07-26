@@ -28,6 +28,9 @@
 
 texgz_tex_t* texgz_png_import(const char* fname);
 texgz_tex_t* texgz_png_importf(FILE* f, size_t size);
-int          texgz_png_export(texgz_tex_t* self, const char* fname);
+texgz_tex_t* texgz_png_importd(size_t size,
+                               const void* data);
+int          texgz_png_export(texgz_tex_t* self,
+                              const char* fname);
 
 #endif

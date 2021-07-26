@@ -156,14 +156,38 @@ texgz_tex_t* texgz_png_importf(FILE* f, size_t size)
 		goto fail_fread;
 	}
 
+	texgz_tex_t* self;
+	self = texgz_png_importd(size, buf);
+	if(self == NULL)
+	{
+		goto fail_tex;
+	}
+
+	FREE(buf);
+
+	// success
+	return self;
+
+	// failure
+	fail_tex:
+	fail_fread:
+		FREE(buf);
+	return NULL;
+}
+
+texgz_tex_t*
+texgz_png_importd(size_t size, const void* data)
+{
+	ASSERT(data);
+
 	unsigned char* img;
 	unsigned w;
 	unsigned h;
-	unsigned err = lodepng_decode32(&img, &w, &h, buf, size);
+	unsigned err = lodepng_decode32(&img, &w, &h, data, size);
 	if(err)
 	{
 		LOGE("invalid %s", lodepng_error_text(err));
-		goto fail_decode;
+		return NULL;
 	}
 
 	texgz_tex_t* self;
@@ -175,7 +199,6 @@ texgz_tex_t* texgz_png_importf(FILE* f, size_t size)
 	}
 	// img allocated by standard C library
 	free(img);
-	FREE(buf);
 
 	// success
 	return self;
@@ -184,9 +207,6 @@ texgz_tex_t* texgz_png_importf(FILE* f, size_t size)
 	fail_tex:
 		// img allocated by standard C library
 		free(img);
-	fail_decode:
-	fail_fread:
-		FREE(buf);
 	return NULL;
 }
 
