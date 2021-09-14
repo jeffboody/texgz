@@ -137,22 +137,56 @@ texgz_tex_sampleOutline(texgz_tex_t* self, int i, int j,
 	}
 
 	// determine the max sample
-	int m;
-	int n;
 	int idx;
-	for(m = m0; m <= m1; ++m)
+	int m;
+	for(m = m0 + 1; m < m1; ++m)
 	{
-		for(n = n0; n <= n1; ++n)
+		// left edge
+		idx = 2*((i + m - off)*self->stride + (j + n0 - off));
+		o = mask[m*size + n0];
+		v = self->pixels[idx];
+		f = o*((float) v);
+		if(f > max)
 		{
-			idx = 2*((i + m - off)*self->stride + (j + n - off));
-			o = mask[m*size + n];
-			v = self->pixels[idx];
-			f = o*((float) v);
-			if(f > max)
-			{
-				max = f;
-				val = v;
-			}
+			max = f;
+			val = v;
+		}
+
+		// right edge
+		idx = 2*((i + m - off)*self->stride + (j + n1 - off));
+		o = mask[m*size + n1];
+		v = self->pixels[idx];
+		f = o*((float) v);
+		if(f > max)
+		{
+			max = f;
+			val = v;
+		}
+	}
+
+	int n;
+	for(n = n0; n <= n1; ++n)
+	{
+		// top edge
+		idx = 2*((i + m0 - off)*self->stride + (j + n - off));
+		o = mask[m0*size + n];
+		v = self->pixels[idx];
+		f = o*((float) v);
+		if(f > max)
+		{
+			max = f;
+			val = v;
+		}
+
+		// bottom edge
+		idx = 2*((i + m1 - off)*self->stride + (j + n - off));
+		o = mask[m1*size + n];
+		v = self->pixels[idx];
+		f = o*((float) v);
+		if(f > max)
+		{
+			max = f;
+			val = v;
 		}
 	}
 
