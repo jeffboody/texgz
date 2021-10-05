@@ -91,6 +91,10 @@ void         texgz_tex_fill(texgz_tex_t* self,
                             int top, int left,
                             int width, int height,
                             unsigned int color);
+void         texgz_tex_lineDraw(texgz_tex_t* self,
+                                float x0, float y0,
+                                float x1, float y1,
+                                unsigned char* pixel);
 void         texgz_tex_sample(texgz_tex_t* self,
                               float u, float v,
                               int bpp, unsigned char* pixel);
