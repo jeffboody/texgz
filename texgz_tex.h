@@ -50,6 +50,14 @@
 
 typedef struct
 {
+	int   id;
+	float x;
+	float y;
+	float pixel;
+} texgz_sampleF_t;
+
+typedef struct
+{
 	int width;
 	int height;
 	int stride;
@@ -95,15 +103,31 @@ void         texgz_tex_lineDraw(texgz_tex_t* self,
                                 float x0, float y0,
                                 float x1, float y1,
                                 unsigned char* pixel);
+void         texgz_tex_lineDrawF(texgz_tex_t* self,
+                                 float x0, float y0,
+                                 float x1, float y1,
+                                 float pixel);
+void         texgz_tex_lineSampleF(texgz_tex_t* self,
+                                   int id,
+                                   float x0, float y0,
+                                   float x1, float y1,
+                                   int* _count,
+                                   int* _size,
+                                   texgz_sampleF_t** _samples);
 void         texgz_tex_sample(texgz_tex_t* self,
                               float u, float v,
                               int bpp, unsigned char* pixel);
 void         texgz_tex_getPixel(texgz_tex_t* self,
                                 int x, int y,
                                 unsigned char* pixel);
+float        texgz_tex_getPixelF(texgz_tex_t* self,
+                                 int x, int y);
 void         texgz_tex_setPixel(texgz_tex_t* self,
                                 int x, int y,
                                 unsigned char* pixel);
+void         texgz_tex_setPixelF(texgz_tex_t* self,
+                                 int x, int y,
+                                 float pixel);
 int          texgz_tex_mipmap(texgz_tex_t* self,
                               int miplevels,
                               texgz_tex_t** mipmaps);

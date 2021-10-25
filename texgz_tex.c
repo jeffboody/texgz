@@ -1111,10 +1111,12 @@ static float min3(float i, float j, float k)
 
 static int
 texgz_tex_lineClip(texgz_tex_t* self,
+                   int* _direction,
                    float* _x0, float* _y0,
                    float* _x1, float* _y1)
 {
 	ASSERT(self);
+	ASSERT(_direction);
 	ASSERT(_x0);
 	ASSERT(_y0);
 	ASSERT(_x1);
@@ -1135,10 +1137,15 @@ texgz_tex_lineClip(texgz_tex_t* self,
 	{
 		float x_temp = x1;
 		float y_temp = y1;
-		x1 = x0;
-		y1 = y0;
-		x0 = x_temp;
-		y0 = y_temp;
+		x1          = x0;
+		y1          = y0;
+		x0          = x_temp;
+		y0          = y_temp;
+		*_direction = -1;
+	}
+	else
+	{
+		*_direction = 1;
 	}
 
 	// compute coefficients for ax + by + c = 0
@@ -1274,6 +1281,7 @@ texgz_tex_lineDrawClipped(texgz_tex_t* self,
 {
 	ASSERT(self);
 	ASSERT(pixel);
+	ASSERT(x0 <= x1);
 
 	int d;
 	int incr1, incr2;
@@ -1293,14 +1301,6 @@ texgz_tex_lineDrawClipped(texgz_tex_t* self,
 	int px = px0;
 	int py = py0;
 
-	// swap direction
-	int xi = 1;
-	if(dx < 0)
-	{
-		xi = -1;
-		dx *= -1;
-	}
-
 	// avoid 4 cases
 	if((dx == 0) ||
 	   (((float) dy / (float) dx) > 1.0f) ||
@@ -1316,7 +1316,7 @@ texgz_tex_lineDrawClipped(texgz_tex_t* self,
 			incr1 = 2 * (dy - dx);   // north east
 			px2_incr = 0;            // reverse px and py
 			py2_incr = 1;
-			px1_incr = xi;
+			px1_incr = 1;
 			py1_incr = 1;
 		}
 		else
@@ -1327,7 +1327,7 @@ texgz_tex_lineDrawClipped(texgz_tex_t* self,
 			incr2 = 2 * (dy + dx);   // south east
 			px1_incr = 0;            // reverse px and py, switch sign of py
 			py1_incr = -1;
-			px2_incr = xi;
+			px2_incr = 1;
 			py2_incr = -1;
 		}
 	}
@@ -1340,9 +1340,9 @@ texgz_tex_lineDrawClipped(texgz_tex_t* self,
 		d = 2 * dy - dx;
 		incr1 = 2 * dy;          // east
 		incr2 = 2 * (dy - dx);   // north east
-		px1_incr = xi;
+		px1_incr = 1;
 		py1_incr = 0;
-		px2_incr = xi;
+		px2_incr = 1;
 		py2_incr = 1;
 	}
 	else if((((float) dy / (float) dx) >= -1.0f) &&
@@ -1354,9 +1354,9 @@ texgz_tex_lineDrawClipped(texgz_tex_t* self,
 		d = 2 * dy + dx;
 		incr2 = 2 * dy;         // east
 		incr1 = 2 * (dy + dx);	// south east
-		px2_incr = xi;
+		px2_incr = 1;
 		py2_incr = 0;
-		px1_incr = xi;
+		px1_incr = 1;
 		py1_incr = -1;	        // switch sign of py
 	}
 	else
@@ -1382,6 +1382,305 @@ texgz_tex_lineDrawClipped(texgz_tex_t* self,
 			py += py2_incr;
 		}
 		texgz_tex_setPixel(self, px, py, pixel);
+	}
+}
+
+static void
+texgz_tex_lineDrawClippedF(texgz_tex_t* self,
+                           float x0, float y0,
+                           float x1, float y1,
+                           float pixel)
+{
+	ASSERT(self);
+	ASSERT(x0 <= x1);
+
+	int d;
+	int incr1, incr2;
+	int px1_incr, py1_incr, px2_incr, py2_incr;
+	int* curpos;
+	int* finalpos;
+
+	// convert line endpoints to pixel coordinates
+	int px0 = (int) x0;
+	int py0 = (int) y0;
+	int px1 = (int) x1;
+	int py1 = (int) y1;
+
+	// initialize slope and start point
+	int dx = px1 - px0;
+	int dy = py1 - py0;
+	int px = px0;
+	int py = py0;
+
+	// avoid 4 cases
+	if((dx == 0) ||
+	   (((float) dy / (float) dx) > 1.0f) ||
+	   (((float) dy / (float) dx) < -1.0f))
+	{
+		curpos = &py;
+		finalpos = &py1;
+		if(dy > 0)
+		{
+			// slope m > 1
+			d = dy - 2 * dx;
+			incr2 = 2 * -dx;         // north
+			incr1 = 2 * (dy - dx);   // north east
+			px2_incr = 0;            // reverse px and py
+			py2_incr = 1;
+			px1_incr = 1;
+			py1_incr = 1;
+		}
+		else
+		{
+			// slope m < -1
+			d = dy + 2 * dx;
+			incr1 = 2 * dx;          // south
+			incr2 = 2 * (dy + dx);   // south east
+			px1_incr = 0;            // reverse px and py, switch sign of py
+			py1_incr = -1;
+			px2_incr = 1;
+			py2_incr = -1;
+		}
+	}
+	else if((((float) dy / (float) dx) <= 1.0f) &&
+	        (((float) dy / (float) dx) >= 0.0f))
+	{
+		// slope 0 < m < 1
+		curpos = &px;
+		finalpos = &px1;
+		d = 2 * dy - dx;
+		incr1 = 2 * dy;          // east
+		incr2 = 2 * (dy - dx);   // north east
+		px1_incr = 1;
+		py1_incr = 0;
+		px2_incr = 1;
+		py2_incr = 1;
+	}
+	else if((((float) dy / (float) dx) >= -1.0f) &&
+	        (((float) dy / (float) dx) <= 0.0f))
+	{
+		// slope 0 > m > -1
+		curpos = &px;
+		finalpos = &px1;
+		d = 2 * dy + dx;
+		incr2 = 2 * dy;         // east
+		incr1 = 2 * (dy + dx);	// south east
+		px2_incr = 1;
+		py2_incr = 0;
+		px1_incr = 1;
+		py1_incr = -1;	        // switch sign of py
+	}
+	else
+	{
+		// unhandled case ...
+		return;
+	}
+
+	// fill first pixel
+	texgz_tex_setPixelF(self, px, py, pixel);
+	while((*finalpos) - (*curpos))
+	{
+		if(d <= 0)
+		{
+			d  += incr1;
+			px += px1_incr;
+			py += py1_incr;
+		}
+		else
+		{
+			d  += incr2;
+			px += px2_incr;
+			py += py2_incr;
+		}
+		texgz_tex_setPixelF(self, px, py, pixel);
+	}
+}
+
+static void
+texgz_tex_samplePixelF(texgz_tex_t* self, int id,
+                       int x, int y,
+                       int direction, int* _offset,
+                       int* _count, int* _size,
+                       texgz_sampleF_t** _samples)
+{
+	ASSERT(self);
+	ASSERT(_offset);
+	ASSERT(_count);
+	ASSERT(_size);
+	ASSERT(_samples);
+	ASSERT(self->type   == TEXGZ_FLOAT);
+	ASSERT(self->format == TEXGZ_LUMINANCE);
+
+	texgz_sampleF_t* samples = *_samples;
+
+	// resize samples
+	int offset = *_offset;
+	int count  = *_count;
+	int size   = *_size;
+	while(offset >= size)
+	{
+		if(size == 0)
+		{
+			size = 32;
+		}
+		else
+		{
+			size *= 2;
+		}
+
+		samples = (texgz_sampleF_t*)
+		          REALLOC((void*) samples,
+		                  size*sizeof(texgz_sampleF_t));
+		if(samples == NULL)
+		{
+			LOGE("REALLOC failed");
+			return;
+		}
+
+		*_samples = samples;
+		*_size    = size;
+	}
+
+	texgz_sampleF_t* sample = &samples[offset];
+	float*           pixels = (float*) self->pixels;
+	int              idx    = y*self->stride + x;
+
+	// assign sample
+	sample->id    = id;
+	sample->x     = (float) x;
+	sample->y     = (float) y;
+	sample->pixel = pixels[idx];
+	*_offset      = offset + direction;
+	*_count       = count + 1;
+}
+
+static void
+texgz_tex_lineSampleClippedF(texgz_tex_t* self, int id,
+                             float x0, float y0,
+                             float x1, float y1,
+                             int direction,
+                             int* _count,
+                             int* _size,
+                             texgz_sampleF_t** _samples)
+{
+	ASSERT(self);
+	ASSERT(_count);
+	ASSERT(_size);
+	ASSERT(_samples);
+	ASSERT(x0 <= x1);
+
+	int d;
+	int incr1, incr2;
+	int px1_incr, py1_incr, px2_incr, py2_incr;
+	int* curpos;
+	int* finalpos;
+
+	// convert line endpoints to pixel coordinates
+	int px0 = (int) x0;
+	int py0 = (int) y0;
+	int px1 = (int) x1;
+	int py1 = (int) y1;
+
+	// initialize slope and start point
+	int dx = px1 - px0;
+	int dy = py1 - py0;
+	int px = px0;
+	int py = py0;
+
+	// avoid 4 cases
+	if((dx == 0) ||
+	   (((float) dy / (float) dx) > 1.0f) ||
+	   (((float) dy / (float) dx) < -1.0f))
+	{
+		curpos = &py;
+		finalpos = &py1;
+		if(dy > 0)
+		{
+			// slope m > 1
+			d = dy - 2 * dx;
+			incr2 = 2 * -dx;         // north
+			incr1 = 2 * (dy - dx);   // north east
+			px2_incr = 0;            // reverse px and py
+			py2_incr = 1;
+			px1_incr = 1;
+			py1_incr = 1;
+		}
+		else
+		{
+			// slope m < -1
+			d = dy + 2 * dx;
+			incr1 = 2 * dx;          // south
+			incr2 = 2 * (dy + dx);   // south east
+			px1_incr = 0;            // reverse px and py, switch sign of py
+			py1_incr = -1;
+			px2_incr = 1;
+			py2_incr = -1;
+		}
+	}
+	else if((((float) dy / (float) dx) <= 1.0f) &&
+	        (((float) dy / (float) dx) >= 0.0f))
+	{
+		// slope 0 < m < 1
+		curpos = &px;
+		finalpos = &px1;
+		d = 2 * dy - dx;
+		incr1 = 2 * dy;          // east
+		incr2 = 2 * (dy - dx);   // north east
+		px1_incr = 1;
+		py1_incr = 0;
+		px2_incr = 1;
+		py2_incr = 1;
+	}
+	else if((((float) dy / (float) dx) >= -1.0f) &&
+	        (((float) dy / (float) dx) <= 0.0f))
+	{
+		// slope 0 > m > -1
+		curpos = &px;
+		finalpos = &px1;
+		d = 2 * dy + dx;
+		incr2 = 2 * dy;         // east
+		incr1 = 2 * (dy + dx);	// south east
+		px2_incr = 1;
+		py2_incr = 0;
+		px1_incr = 1;
+		py1_incr = -1;	        // switch sign of py
+	}
+	else
+	{
+		// unhandled case ...
+		return;
+	}
+
+	// compute offset to restore pixel order
+	int offset = *_count;
+	if(direction < 0)
+	{
+		offset = *_count + abs((*finalpos) - (*curpos));
+	}
+
+	// fill first pixel
+	texgz_tex_samplePixelF(self, id, px, py,
+	                       direction, &offset,
+	                       _count, _size,
+	                       _samples);
+	while((*finalpos) - (*curpos))
+	{
+		if(d <= 0)
+		{
+			d  += incr1;
+			px += px1_incr;
+			py += py1_incr;
+		}
+		else
+		{
+			d  += incr2;
+			px += px2_incr;
+			py += py2_incr;
+		}
+		texgz_tex_samplePixelF(self, id, px, py,
+		                       direction, &offset,
+		                       _count, _size,
+		                       _samples);
 	}
 }
 
@@ -2692,12 +2991,54 @@ void texgz_tex_lineDraw(texgz_tex_t* self,
 	       (self->format == TEXGZ_RGBA) ||
 	       (self->format == TEXGZ_LUMINANCE));
 
-	if(texgz_tex_lineClip(self, &x0, &y0, &x1, &y1))
+	int direction = 1;
+	if(texgz_tex_lineClip(self, &direction, &x0, &y0, &x1, &y1))
 	{
 		return;
 	}
 
 	texgz_tex_lineDrawClipped(self, x0, y0, x1, y1, pixel);
+}
+
+void texgz_tex_lineDrawF(texgz_tex_t* self,
+                         float x0, float y0,
+                         float x1, float y1,
+                         float pixel)
+{
+	ASSERT(self);
+	ASSERT(self->type   == TEXGZ_FLOAT);
+	ASSERT(self->format == TEXGZ_LUMINANCE);
+
+	int direction = 1;
+	if(texgz_tex_lineClip(self, &direction, &x0, &y0, &x1, &y1))
+	{
+		return;
+	}
+
+	texgz_tex_lineDrawClippedF(self, x0, y0, x1, y1, pixel);
+}
+
+void texgz_tex_lineSampleF(texgz_tex_t* self, int id,
+                           float x0, float y0,
+                           float x1, float y1,
+                           int* _count,
+                           int* _size,
+                           texgz_sampleF_t** _samples)
+{
+	ASSERT(self);
+	ASSERT(_count);
+	ASSERT(_size);
+	ASSERT(_samples);
+
+	int direction = 1;
+	if(texgz_tex_lineClip(self, &direction, &x0, &y0, &x1, &y1))
+	{
+		return;
+	}
+
+	texgz_tex_lineSampleClippedF(self, id, x0, y0, x1, y1,
+	                             direction,
+	                             _count, _size, _samples);
 }
 
 void texgz_tex_sample(texgz_tex_t* self, float u, float v,
@@ -2823,6 +3164,19 @@ void texgz_tex_getPixel(texgz_tex_t* self,
 	}
 }
 
+float texgz_tex_getPixelF(texgz_tex_t* self,
+                          int x, int y)
+{
+	ASSERT(self);
+	ASSERT(self->type   == TEXGZ_FLOAT);
+	ASSERT(self->format == TEXGZ_LUMINANCE);
+
+	int idx = y*self->stride + x;
+
+	float* pixels = (float*) self->pixels;
+	return pixels[idx];
+}
+
 void texgz_tex_setPixel(texgz_tex_t* self,
                         int x, int y,
                         unsigned char* pixel)
@@ -2855,6 +3209,20 @@ void texgz_tex_setPixel(texgz_tex_t* self,
 		idx = y*self->stride + x;
 		self->pixels[idx] = pixel[0];
 	}
+}
+
+void texgz_tex_setPixelF(texgz_tex_t* self,
+                         int x, int y,
+                         float pixel)
+{
+	ASSERT(self);
+	ASSERT(self->type   == TEXGZ_FLOAT);
+	ASSERT(self->format == TEXGZ_LUMINANCE);
+
+	int idx = y*self->stride + x;
+
+	float* pixels = (float*) self->pixels;
+	pixels[idx] = pixel;
 }
 
 int texgz_tex_mipmap(texgz_tex_t* self, int miplevels,
