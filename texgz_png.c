@@ -99,6 +99,40 @@ texgz_png_exportRGB(texgz_tex_t* self, const char* fname)
 	return 0;
 }
 
+static int
+texgz_png_exportGray(texgz_tex_t* self, const char* fname)
+{
+	ASSERT(self);
+	ASSERT(fname);
+
+	texgz_tex_t* tex = NULL;
+	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+	                            TEXGZ_ALPHA);
+	if(tex == NULL)
+	{
+		return 0;
+	}
+
+	unsigned err;
+	err = lodepng_encode_file(fname, tex->pixels,
+	                          tex->stride, tex->vstride,
+	                          LCT_GREY, 8);
+	if(err)
+	{
+		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
+		goto fail_encode;
+	}
+	texgz_tex_delete(&tex);
+
+	// success
+	return 1;
+
+	// failure
+	fail_encode:
+		texgz_tex_delete(&tex);
+	return 0;
+}
+
 /*
  * public
  */
@@ -218,6 +252,11 @@ int texgz_png_export(texgz_tex_t* self, const char* fname)
 	if(self->format == TEXGZ_RGBA)
 	{
 		return texgz_png_exportRGBA(self, fname);
+	}
+	else if((self->format == TEXGZ_ALPHA) ||
+	        (self->format == TEXGZ_LUMINANCE))
+	{
+		return texgz_png_exportGray(self, fname);
 	}
 	return texgz_png_exportRGB(self, fname);
 }
