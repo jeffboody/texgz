@@ -158,7 +158,7 @@ int main(int argc, char** argv)
 	}
 	else if(check_ext(arg_src, "jpg"))
 	{
-		tex = texgz_jpeg_import(arg_src);
+		tex = texgz_jpeg_import(arg_src, TEXGZ_RGB);
 	}
 	else if(check_ext(arg_src, "png"))
 	{
