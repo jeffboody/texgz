@@ -52,10 +52,10 @@ static void texgz_jpeg_rgb2rgba(texgz_tex_t* self)
 	{
 		for(j = width - 1; j >= 0; --j)
 		{
-			pixels[4*j]     = pixels[3*j];
-			pixels[4*j + 1] = pixels[3*j + 1];
-			pixels[4*j + 2] = pixels[3*j + 2];
 			pixels[4*j + 3] = 0xFF;
+			pixels[4*j + 2] = pixels[3*j + 2];
+			pixels[4*j + 1] = pixels[3*j + 1];
+			pixels[4*j]     = pixels[3*j];
 		}
 
 		pixels += stride;
