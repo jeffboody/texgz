@@ -43,6 +43,15 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
+	// required to outline
+	// input should be grayscale on black image
+	if(texgz_tex_convert(tex,
+	                     TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_LUMINANCE) == 0)
+	{
+		goto fail_convert1;
+	}
+
 	int          size = (int) strtol(argv[1], NULL, 0);
 	texgz_tex_t* out  = texgz_tex_outline(tex, size);
 	if(out == NULL)
@@ -55,7 +64,7 @@ int main(int argc, char** argv)
 	                     TEXGZ_UNSIGNED_BYTE,
 	                     TEXGZ_RGBA) == 0)
 	{
-		goto fail_convert;
+		goto fail_convert2;
 	}
 
 	if(texgz_png_export(out, argv[3]) == 0)
@@ -71,8 +80,9 @@ int main(int argc, char** argv)
 
 	// failure
 	fail_export:
-	fail_convert:
+	fail_convert2:
 		texgz_tex_delete(&out);
+	fail_convert1:
 	fail_outline:
 		texgz_tex_delete(&tex);
 	return EXIT_FAILURE;
