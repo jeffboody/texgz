@@ -56,17 +56,22 @@ static int check_ext(const char* fname, const char* ext)
 
 static void usage(const char* argv0)
 {
-	LOGE("usage: %s [format] [src] [dst]", argv0);
-	LOGE("RGBA-8888   - texgz, texz, png");
-	LOGE("BGRA-8888   - texgz, texz");
-	LOGE("RGB-565     - texgz, texz");
-	LOGE("RGBA-4444   - texgz, texz");
-	LOGE("RGB-888     - texgz, texz, png, jpg");
-	LOGE("RGBA-5551   - texgz, texz");
-	LOGE("LUMINANCE   - texgz, texz, png");
-	LOGE("ALPHA       - texgz, texz, png");
-	LOGE("LUMINANCE-A - texgz, texz");
-	LOGE("LUMINANCE-F - texgz, texz");
+	printf("Check Image Info:\n");
+	printf("%s [check-image]\n", argv0);
+	printf("\n");
+	printf("Convert Image Format:\n");
+	printf("%s [format] [src-image] [dst-image]\n",
+	     argv0);
+	printf("RGBA-8888   - texgz, texz, png\n");
+	printf("BGRA-8888   - texgz, texz\n");
+	printf("RGB-565     - texgz, texz\n");
+	printf("RGBA-4444   - texgz, texz\n");
+	printf("RGB-888     - texgz, texz, png, jpg\n");
+	printf("RGBA-5551   - texgz, texz\n");
+	printf("LUMINANCE   - texgz, texz, png\n");
+	printf("ALPHA       - texgz, texz, png\n");
+	printf("LUMINANCE-A - texgz, texz\n");
+	printf("LUMINANCE-F - texgz, texz\n");
 }
 
 int main(int argc, char** argv)
@@ -75,7 +80,13 @@ int main(int argc, char** argv)
 	const char* arg_src    = NULL;
 	const char* arg_dst    = NULL;
 
-	if(argc == 4)
+	int check_info = 0;
+	if(argc == 2)
+	{
+		arg_src    = argv[1];
+		check_info = 1;
+	}
+	else if(argc == 4)
 	{
 		arg_format = argv[1];
 		arg_src    = argv[2];
@@ -88,9 +99,13 @@ int main(int argc, char** argv)
 	}
 
 	// parse format
-	int type;
-	int format;
-	if(strcmp(arg_format, "RGBA-8888") == 0)
+	int type   = 0;
+	int format = 0;
+	if(arg_format == NULL)
+	{
+		// skip
+	}
+	else if(strcmp(arg_format, "RGBA-8888") == 0)
 	{
 		type  = TEXGZ_UNSIGNED_BYTE;
 		format = TEXGZ_RGBA;
@@ -179,6 +194,19 @@ int main(int argc, char** argv)
 	if(tex == NULL)
 	{
 		return EXIT_FAILURE;
+	}
+
+	if(check_info)
+	{
+		LOGI("width=%i, height=%i",
+		     tex->width, tex->height);
+		LOGI("stirde=%i, vstride=%i",
+		     tex->stride, tex->vstride);
+		LOGI("type=0x%X, format=0x%X",
+		     tex->type, tex->format);
+
+		texgz_tex_delete(&tex);
+		return EXIT_SUCCESS;
 	}
 
 	// convert to format
