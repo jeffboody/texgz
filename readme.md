@@ -39,20 +39,6 @@ texgz-convert
 A conversion utility that also serves as an example for using the
 texgz library.
 
-osm2pak
-=======
-
-Convert png images exported by OSM in the directory layout
-localhost/osm/zoom/xj/yi.png to the directory layout
-osm/zoom/x_y.pak as RGBA-4444 texgz images.
-
-unpaktex
-========
-
-A conversion utility that unpacks/untiles compressed texgz images from
-a pak file. The source file is expected to have 8x8 tiles of 256x256
-textures. This is the format used by osm textures.
-
 example using texgz as a texture in OpenGL ES
 =============================================
 
