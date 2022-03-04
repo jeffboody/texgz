@@ -2174,16 +2174,43 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 		goto fail_read;
 	}
 
+	texgz_tex_t* self;
+	self = texgz_tex_importd((size_t) size, (const void*) src);
+	if(self == NULL)
+	{
+		goto fail_tex;
+	}
+
+	FREE(src);
+
+	// success
+	return self;
+
+	// failure
+	fail_tex:
+		FREE(src);
+	fail_read:
+		fseek(f, start, SEEK_SET);
+		FREE(src);
+	return NULL;
+}
+
+texgz_tex_t*
+texgz_tex_importd(size_t size, const void* data)
+{
+	ASSERT(size > 0);
+	ASSERT(data);
+
 	// uncompress the header
 	unsigned char header[TEXGZ_TEX_HSIZE];
 	uLong         hsize    = TEXGZ_TEX_HSIZE;
 	uLong         src_size = (uLong) size;
-	uncompress((Bytef*) header, &hsize, (const Bytef*) src,
+	uncompress((Bytef*) header, &hsize, (const Bytef*) data,
 	           src_size);
 	if(hsize != TEXGZ_TEX_HSIZE)
 	{
 		LOGE("uncompress failed hsize=%i", (int) hsize);
-		goto fail_uncompress_header;
+		return NULL;
 	}
 
 	int type;
@@ -2196,7 +2223,7 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
                     &width, &height, &stride,
 	                &vstride) == 0)
 	{
-		goto fail_parseh;
+		return NULL;
 	}
 
 	// create tex
@@ -2205,7 +2232,7 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	                     type, format, NULL);
 	if(self == NULL)
 	{
-		goto fail_tex;
+		return NULL;
 	}
 
 	// allocate dst buffer
@@ -2221,7 +2248,7 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	}
 
 	if(uncompress((Bytef*) dst, &dst_size,
-	              (const Bytef*) src, src_size) != Z_OK)
+	              (const Bytef*) data, src_size) != Z_OK)
 	{
 		LOGE("fail uncompress");
 		goto fail_uncompress;
@@ -2237,8 +2264,6 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 	// copy buffer into tex
 	memcpy(self->pixels, &dst[TEXGZ_TEX_HSIZE], bytes);
 
-	// free src and dst buffers
-	FREE(src);
 	FREE(dst);
 
 	// success
@@ -2250,12 +2275,6 @@ texgz_tex_t* texgz_tex_importf(FILE* f, int size)
 		FREE(dst);
 	fail_dst:
 		texgz_tex_delete(&self);
-	fail_tex:
-	fail_parseh:
-	fail_uncompress_header:
-	fail_read:
-		fseek(f, start, SEEK_SET);
-		FREE(src);
 	return NULL;
 }
 
