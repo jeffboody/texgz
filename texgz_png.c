@@ -34,80 +34,17 @@
  */
 
 static int
-texgz_png_exportRGBA(texgz_tex_t* self, const char* fname)
+texgz_png_exportAs(texgz_tex_t* self,
+                   int format,
+                   LodePNGColorType colortype,
+                   const char* fname)
 {
 	ASSERT(self);
 	ASSERT(fname);
 
 	texgz_tex_t* tex = NULL;
 	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-	                            TEXGZ_RGBA);
-	if(tex == NULL)
-	{
-		return 0;
-	}
-
-	unsigned err;
-	err = lodepng_encode32_file(fname, tex->pixels,
-	                            tex->stride, tex->vstride);
-	if(err)
-	{
-		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
-		goto fail_encode;
-	}
-	texgz_tex_delete(&tex);
-
-	// success
-	return 1;
-
-	// failure
-	fail_encode:
-		texgz_tex_delete(&tex);
-	return 0;
-}
-
-static int
-texgz_png_exportRGB(texgz_tex_t* self, const char* fname)
-{
-	ASSERT(self);
-	ASSERT(fname);
-
-	texgz_tex_t* tex = NULL;
-	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-	                            TEXGZ_RGB);
-	if(tex == NULL)
-	{
-		return 0;
-	}
-
-	unsigned err;
-	err = lodepng_encode24_file(fname, tex->pixels,
-	                            tex->stride, tex->vstride);
-	if(err)
-	{
-		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
-		goto fail_encode;
-	}
-	texgz_tex_delete(&tex);
-
-	// success
-	return 1;
-
-	// failure
-	fail_encode:
-		texgz_tex_delete(&tex);
-	return 0;
-}
-
-static int
-texgz_png_exportGray(texgz_tex_t* self, const char* fname)
-{
-	ASSERT(self);
-	ASSERT(fname);
-
-	texgz_tex_t* tex = NULL;
-	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-	                            TEXGZ_ALPHA);
+	                            format);
 	if(tex == NULL)
 	{
 		return 0;
@@ -116,7 +53,7 @@ texgz_png_exportGray(texgz_tex_t* self, const char* fname)
 	unsigned err;
 	err = lodepng_encode_file(fname, tex->pixels,
 	                          tex->stride, tex->vstride,
-	                          LCT_GREY, 8);
+	                          colortype, 8);
 	if(err)
 	{
 		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
@@ -141,33 +78,45 @@ texgz_tex_t* texgz_png_import(const char* fname)
 {
 	ASSERT(fname);
 
-	unsigned char* img;
-	unsigned w;
-	unsigned h;
-	unsigned err = lodepng_decode32_file(&img, &w, &h, fname);
-	if(err)
+	FILE* f = fopen(fname, "r");
+	if(f == NULL)
 	{
-		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
+		LOGE("invalid %s", fname);
 		return NULL;
 	}
 
+	// get file lenth
+	if(fseek(f, (long) 0, SEEK_END) == -1)
+	{
+		LOGE("fseek_end fname=%s", fname);
+		goto fail_fseek_end;
+	}
+	size_t size = ftell(f);
+
+	// rewind to start
+	if(fseek(f, 0, SEEK_SET) == -1)
+	{
+		LOGE("fseek_set fname=%s", fname);
+		goto fail_fseek_set;
+	}
+
 	texgz_tex_t* self;
-	self = texgz_tex_new(w, h, w, h, TEXGZ_UNSIGNED_BYTE,
-	                     TEXGZ_RGBA, img);
+	self = texgz_png_importf(f, size);
 	if(self == NULL)
 	{
-		goto fail_tex;
+		goto fail_import;
 	}
-	// img allocated by standard C library
-	free(img);
+
+	fclose(f);
 
 	// success
 	return self;
 
 	// failure
-	fail_tex:
-		// img allocated by standard C library
-		free(img);
+	fail_import:
+	fail_fseek_set:
+	fail_fseek_end:
+		fclose(f);
 	return NULL;
 }
 
@@ -214,10 +163,40 @@ texgz_png_importd(size_t size, const void* data)
 {
 	ASSERT(data);
 
-	unsigned char* img;
-	unsigned w;
-	unsigned h;
-	unsigned err = lodepng_decode32(&img, &w, &h, data, size);
+	unsigned w = 0;
+	unsigned h = 0;
+	LodePNGState state = { 0 };
+	if(lodepng_inspect(&w, &h, &state,
+	                   data, size) != 0)
+	{
+		LOGE("lodepng_inspect failed");
+		return NULL;
+	}
+
+	int              format    = 0;
+	LodePNGColorType colortype = state.info_png.color.colortype;
+	if(colortype == LCT_GREY)
+	{
+		format = TEXGZ_ALPHA;
+	}
+	else if(colortype == LCT_GREY_ALPHA)
+	{
+		format = TEXGZ_LUMINANCE_ALPHA;
+	}
+	else if(colortype == LCT_RGB)
+	{
+		format = TEXGZ_RGB;
+	}
+	else
+	{
+		colortype = LCT_RGBA;
+		format    = TEXGZ_RGBA;
+	}
+
+	unsigned char* img = NULL;
+	unsigned       err;
+	err = lodepng_decode_memory(&img, &w, &h, data,
+	                            size, colortype, 8);
 	if(err)
 	{
 		LOGE("invalid %s", lodepng_error_text(err));
@@ -226,11 +205,12 @@ texgz_png_importd(size_t size, const void* data)
 
 	texgz_tex_t* self;
 	self = texgz_tex_new(w, h, w, h, TEXGZ_UNSIGNED_BYTE,
-	                     TEXGZ_RGBA, img);
+	                     format, img);
 	if(self == NULL)
 	{
 		goto fail_tex;
 	}
+
 	// img allocated by standard C library
 	free(img);
 
@@ -249,14 +229,39 @@ int texgz_png_export(texgz_tex_t* self, const char* fname)
 	ASSERT(self);
 	ASSERT(fname);
 
-	if(self->format == TEXGZ_RGBA)
+	if(self->format == TEXGZ_RGB)
 	{
-		return texgz_png_exportRGBA(self, fname);
+		return texgz_png_exportAs(self,
+		                          TEXGZ_RGB,
+		                          LCT_RGB,
+		                          fname);
 	}
-	else if((self->format == TEXGZ_ALPHA) ||
-	        (self->format == TEXGZ_LUMINANCE))
+	else if(self->format == TEXGZ_LUMINANCE_ALPHA)
 	{
-		return texgz_png_exportGray(self, fname);
+		return texgz_png_exportAs(self,
+		                          TEXGZ_LUMINANCE_ALPHA,
+		                          LCT_GREY_ALPHA,
+		                          fname);
 	}
-	return texgz_png_exportRGB(self, fname);
+	else if(self->format == TEXGZ_LUMINANCE)
+	{
+		return texgz_png_exportAs(self,
+		                          TEXGZ_LUMINANCE,
+		                          LCT_GREY,
+		                          fname);
+	}
+	else if(self->format == TEXGZ_ALPHA)
+	{
+		return texgz_png_exportAs(self,
+		                          TEXGZ_ALPHA,
+		                          LCT_GREY,
+		                          fname);
+	}
+	else
+	{
+		return texgz_png_exportAs(self,
+		                          TEXGZ_RGBA,
+		                          LCT_RGBA,
+		                          fname);
+	}
 }
