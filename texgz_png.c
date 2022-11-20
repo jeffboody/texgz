@@ -42,12 +42,26 @@ texgz_png_exportAs(texgz_tex_t* self,
 	ASSERT(self);
 	ASSERT(fname);
 
-	texgz_tex_t* tex = NULL;
-	tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
-	                            format);
-	if(tex == NULL)
+	int delete_tex = 0;
+	texgz_tex_t* tex = self;
+	if((tex->type   != TEXGZ_UNSIGNED_BYTE) ||
+	   (tex->format != format)              ||
+	   (tex->width  != tex->stride)         ||
+	   (tex->height != tex->vstride))
 	{
-		return 0;
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+		                            format);
+		if(tex == NULL)
+		{
+			return 0;
+		}
+		delete_tex = 1;
+
+		if(texgz_tex_crop(tex, 0, 0, tex->height - 1,
+		                  tex->width - 1) == 0)
+		{
+			goto fail_tex;
+		}
 	}
 
 	unsigned err;
@@ -59,14 +73,86 @@ texgz_png_exportAs(texgz_tex_t* self,
 		LOGE("invalid %s : %s", fname, lodepng_error_text(err));
 		goto fail_encode;
 	}
-	texgz_tex_delete(&tex);
+
+	if(delete_tex)
+	{
+		texgz_tex_delete(&tex);
+	}
 
 	// success
 	return 1;
 
 	// failure
 	fail_encode:
+	fail_tex:
+		if(delete_tex)
+		{
+			texgz_tex_delete(&tex);
+		}
+	return 0;
+}
+
+static int
+texgz_png_compressAs(texgz_tex_t* self,
+                     int format,
+                     LodePNGColorType colortype,
+                     unsigned char** out,
+                     size_t* outsize)
+{
+	ASSERT(self);
+	ASSERT(fname);
+	ASSERT(out);
+	ASSERT(outsize);
+
+	// out is allocated by C malloc
+
+	int delete_tex = 0;
+	texgz_tex_t* tex = self;
+	if((tex->type   != TEXGZ_UNSIGNED_BYTE) ||
+	   (tex->format != format)              ||
+	   (tex->width  != tex->stride)         ||
+	   (tex->height != tex->vstride))
+	{
+		tex = texgz_tex_convertcopy(self, TEXGZ_UNSIGNED_BYTE,
+		                            format);
+		if(tex == NULL)
+		{
+			return 0;
+		}
+		delete_tex = 1;
+
+		if(texgz_tex_crop(tex, 0, 0, tex->height - 1,
+		                  tex->width - 1) == 0)
+		{
+			goto fail_tex;
+		}
+	}
+
+	unsigned err;
+	err = lodepng_encode_memory(out, outsize, tex->pixels,
+	                           tex->stride, tex->vstride,
+	                           colortype, 8);
+	if(err)
+	{
+		LOGE("invalid %s", lodepng_error_text(err));
+		goto fail_encode;
+	}
+
+	if(delete_tex)
+	{
 		texgz_tex_delete(&tex);
+	}
+
+	// success
+	return 1;
+
+	// failure
+	fail_encode:
+	fail_tex:
+		if(delete_tex)
+		{
+			texgz_tex_delete(&tex);
+		}
 	return 0;
 }
 
@@ -263,5 +349,50 @@ int texgz_png_export(texgz_tex_t* self, const char* fname)
 		                          TEXGZ_RGBA,
 		                          LCT_RGBA,
 		                          fname);
+	}
+}
+
+int texgz_png_compress(texgz_tex_t* self,
+                       unsigned char** out,
+                       size_t* outsize)
+{
+	ASSERT(self);
+	ASSERT(out);
+	ASSERT(outsize);
+
+	if(self->format == TEXGZ_RGB)
+	{
+		return texgz_png_compressAs(self,
+		                            TEXGZ_RGB,
+		                            LCT_RGB,
+		                            out, outsize);
+	}
+	else if(self->format == TEXGZ_LUMINANCE_ALPHA)
+	{
+		return texgz_png_compressAs(self,
+		                            TEXGZ_LUMINANCE_ALPHA,
+		                            LCT_GREY_ALPHA,
+		                            out, outsize);
+	}
+	else if(self->format == TEXGZ_LUMINANCE)
+	{
+		return texgz_png_compressAs(self,
+		                            TEXGZ_LUMINANCE,
+		                            LCT_GREY,
+		                            out, outsize);
+	}
+	else if(self->format == TEXGZ_ALPHA)
+	{
+		return texgz_png_compressAs(self,
+		                            TEXGZ_ALPHA,
+		                            LCT_GREY,
+		                            out, outsize);
+	}
+	else
+	{
+		return texgz_png_compressAs(self,
+		                            TEXGZ_RGBA,
+		                            LCT_RGBA,
+		                            out, outsize);
 	}
 }
