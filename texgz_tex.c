@@ -3065,6 +3065,8 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 {
 	ASSERT(self);
 	ASSERT(pixel);
+	ASSERT((u >= 0.0f) && (u <= 1.0f));
+	ASSERT((v >= 0.0f) && (v <= 1.0f));
 	ASSERT(self->type == TEXGZ_UNSIGNED_BYTE);
 
 	// skip expensive ASSERT
@@ -3081,37 +3083,10 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 	int v1 = v0 + 1;
 
 	// double check the indices
-	if(u0 < 0)
+	if((u1 >= self->width) || (v1 >= self->height))
 	{
-		u0 = 0;
-	}
-	if(u1 < 0)
-	{
-		u1 = 0;
-	}
-	if(u0 >= self->width)
-	{
-		u0 = self->width - 1;
-	}
-	if(u1 >= self->width)
-	{
-		u1 = self->width - 1;
-	}
-	if(v0 < 0)
-	{
-		v0 = 0;
-	}
-	if(v1 < 0)
-	{
-		v1 = 0;
-	}
-	if(v0 >= self->height)
-	{
-		v0 = self->height - 1;
-	}
-	if(v1 >= self->height)
-	{
-		v1 = self->height - 1;
+		texgz_tex_getPixel(self, u0, v0, pixel);
+		return;
 	}
 
 	// compute interpolation coordinates
