@@ -3124,8 +3124,8 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 	int i;
 	unsigned char* pixels   = self->pixels;
 	int            offset00 = bpp*(v0*self->stride + u0);
-	int            offset01 = bpp*(v0*self->stride + u1);
-	int            offset10 = bpp*(v1*self->stride + u0);
+	int            offset01 = bpp*(v1*self->stride + u0);
+	int            offset10 = bpp*(v0*self->stride + u1);
 	int            offset11 = bpp*(v1*self->stride + u1);
 	for(i = 0; i < bpp; ++i)
 	{
