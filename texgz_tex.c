@@ -3073,35 +3073,33 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 	// ASSERT(bpp == texgz_tex_bpp(self));
 
 	// "float indices"
-	float pu = u*(self->width  - 1);
-	float pv = v*(self->height - 1);
+	float x = u*(self->width  - 1);
+	float y = v*(self->height - 1);
 
 	// determine indices to sample
-	int u0 = (int) pu;
-	int v0 = (int) pv;
-	int u1 = u0 + 1;
-	int v1 = v0 + 1;
+	int x0 = (int) x;
+	int y0 = (int) y;
+	int x1 = x0 + 1;
+	int y1 = y0 + 1;
 
 	// double check the indices
-	if((u1 >= self->width) || (v1 >= self->height))
+	if((x1 >= self->width) || (y1 >= self->height))
 	{
-		texgz_tex_getPixel(self, u0, v0, pixel);
+		texgz_tex_getPixel(self, x0, y0, pixel);
 		return;
 	}
 
-	// compute interpolation coordinates
-	float u0f = (float) u0;
-	float v0f = (float) v0;
-	float uf  = pu - u0f;
-	float vf  = pv - v0f;
+	// compute interpolation coefficients
+	float s = x - ((float) x0);
+	float t = y - ((float) y0);
 
 	// sample interpolation values
 	int i;
-	unsigned char* pixels   = self->pixels;
-	int            offset00 = bpp*(v0*self->stride + u0);
-	int            offset01 = bpp*(v1*self->stride + u0);
-	int            offset10 = bpp*(v0*self->stride + u1);
-	int            offset11 = bpp*(v1*self->stride + u1);
+	int offset00 = bpp*(y0*self->stride + x0);
+	int offset01 = bpp*(y1*self->stride + x0);
+	int offset10 = bpp*(y0*self->stride + x1);
+	int offset11 = bpp*(y1*self->stride + x1);
+	unsigned char* pixels = self->pixels;
 	for(i = 0; i < bpp; ++i)
 	{
 		// convert component to float
@@ -3110,13 +3108,13 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 		float f10 = (float) pixels[offset10 + i];
 		float f11 = (float) pixels[offset11 + i];
 
-		// interpolate u
-		float f0010 = f00 + uf*(f10 - f00);
-		float f0111 = f01 + uf*(f11 - f01);
+		// interpolate x
+		float f0010 = f00 + s*(f10 - f00);
+		float f0111 = f01 + s*(f11 - f01);
 
-		// interpolate v
+		// interpolate y
 		pixel[i] = (unsigned char)
-		           (f0010 + vf*(f0111 - f0010) + 0.5f);
+		           (f0010 + t*(f0111 - f0010) + 0.5f);
 	}
 }
 
