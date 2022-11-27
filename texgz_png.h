@@ -33,7 +33,7 @@ texgz_tex_t* texgz_png_importd(size_t size,
 int          texgz_png_export(texgz_tex_t* self,
                               const char* fname);
 int          texgz_png_compress(texgz_tex_t* self,
-                                unsigned char** out,
-                                size_t* outsize);
+                                void** _data,
+                                size_t* _size);
 
 #endif

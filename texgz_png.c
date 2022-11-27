@@ -96,15 +96,15 @@ static int
 texgz_png_compressAs(texgz_tex_t* self,
                      int format,
                      LodePNGColorType colortype,
-                     unsigned char** out,
-                     size_t* outsize)
+                     void** _data,
+                     size_t* _size)
 {
 	ASSERT(self);
 	ASSERT(fname);
-	ASSERT(out);
-	ASSERT(outsize);
+	ASSERT(_data);
+	ASSERT(_size);
 
-	// out is allocated by C malloc
+	// _data is allocated by C malloc
 
 	int delete_tex = 0;
 	texgz_tex_t* tex = self;
@@ -129,9 +129,10 @@ texgz_png_compressAs(texgz_tex_t* self,
 	}
 
 	unsigned err;
-	err = lodepng_encode_memory(out, outsize, tex->pixels,
-	                           tex->stride, tex->vstride,
-	                           colortype, 8);
+	err = lodepng_encode_memory((unsigned char**) _data,
+	                            _size, tex->pixels,
+	                            tex->stride, tex->vstride,
+	                            colortype, 8);
 	if(err)
 	{
 		LOGE("invalid %s", lodepng_error_text(err));
@@ -353,46 +354,46 @@ int texgz_png_export(texgz_tex_t* self, const char* fname)
 }
 
 int texgz_png_compress(texgz_tex_t* self,
-                       unsigned char** out,
-                       size_t* outsize)
+                       void** _data,
+                       size_t* _size)
 {
 	ASSERT(self);
-	ASSERT(out);
-	ASSERT(outsize);
+	ASSERT(_data);
+	ASSERT(_size);
 
 	if(self->format == TEXGZ_RGB)
 	{
 		return texgz_png_compressAs(self,
 		                            TEXGZ_RGB,
 		                            LCT_RGB,
-		                            out, outsize);
+		                            _data, _size);
 	}
 	else if(self->format == TEXGZ_LUMINANCE_ALPHA)
 	{
 		return texgz_png_compressAs(self,
 		                            TEXGZ_LUMINANCE_ALPHA,
 		                            LCT_GREY_ALPHA,
-		                            out, outsize);
+		                            _data, _size);
 	}
 	else if(self->format == TEXGZ_LUMINANCE)
 	{
 		return texgz_png_compressAs(self,
 		                            TEXGZ_LUMINANCE,
 		                            LCT_GREY,
-		                            out, outsize);
+		                            _data, _size);
 	}
 	else if(self->format == TEXGZ_ALPHA)
 	{
 		return texgz_png_compressAs(self,
 		                            TEXGZ_ALPHA,
 		                            LCT_GREY,
-		                            out, outsize);
+		                            _data, _size);
 	}
 	else
 	{
 		return texgz_png_compressAs(self,
 		                            TEXGZ_RGBA,
 		                            LCT_RGBA,
-		                            out, outsize);
+		                            _data, _size);
 	}
 }
