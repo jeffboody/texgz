@@ -35,5 +35,8 @@ texgz_tex_t* texgz_jpeg_importd(size_t size,
                                 int format);
 int          texgz_jpeg_export(texgz_tex_t* self,
                                const char* fname);
+int          texgz_jpeg_compress(texgz_tex_t* self,
+                                 void** _data,
+                                 size_t* _size);
 
 #endif
