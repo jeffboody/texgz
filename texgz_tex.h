@@ -119,6 +119,9 @@ void         texgz_tex_lineSampleF(texgz_tex_t* self,
 void         texgz_tex_sample(texgz_tex_t* self,
                               float u, float v,
                               int bpp, unsigned char* pixel);
+void         texgz_tex_sampleBicubicRGBA(texgz_tex_t* self,
+                                         float u, float v,
+                                         unsigned char* pixel);
 void         texgz_tex_getPixel(texgz_tex_t* self,
                                 int x, int y,
                                 unsigned char* pixel);

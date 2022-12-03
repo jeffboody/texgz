@@ -29,6 +29,7 @@
 #define LOG_TAG "texgz"
 #include "../libcc/cc_log.h"
 #include "../libcc/cc_memory.h"
+#include "../libcc/math/cc_float.h"
 #include "texgz_tex.h"
 
 /*
@@ -3116,6 +3117,101 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 		pixel[i] = (unsigned char)
 		           (f0010 + t*(f0111 - f0010) + 0.5f);
 	}
+}
+
+static void
+texgz_tex_cubicInterpolateRGBA(unsigned char* p, float s,
+                               unsigned char* out)
+{
+	ASSERT(p);
+	ASSERT(out);
+
+	// interpolate each component
+
+	float p0 = (float) p[0];
+	float p1 = (float) p[4];
+	float p2 = (float) p[8];
+	float p3 = (float) p[12];
+	float pi = cc_clamp(p1 + 0.5f*s*(p2 - p0 + s*(2.0f*p0 - 5.0f*p1 + 4.0f*p2 - p3 + s*(3.0f*(p1 - p2) + p3 - p0))), 0.0f, 255.0f);
+	out[0]   = (unsigned char) pi;
+
+	p0     = (float) p[1];
+	p1     = (float) p[5];
+	p2     = (float) p[9];
+	p3     = (float) p[13];
+	pi     = cc_clamp(p1 + 0.5f*s*(p2 - p0 + s*(2.0f*p0 - 5.0f*p1 + 4.0f*p2 - p3 + s*(3.0f*(p1 - p2) + p3 - p0))), 0.0f, 255.0f);
+	out[1] = (unsigned char) pi;
+
+	p0     = (float) p[2];
+	p1     = (float) p[6];
+	p2     = (float) p[10];
+	p3     = (float) p[14];
+	pi     = cc_clamp(p1 + 0.5f*s*(p2 - p0 + s*(2.0f*p0 - 5.0f*p1 + 4.0f*p2 - p3 + s*(3.0f*(p1 - p2) + p3 - p0))), 0.0f, 255.0f);
+	out[2] = (unsigned char) pi;
+
+	p0     = (float) p[3];
+	p1     = (float) p[7];
+	p2     = (float) p[11];
+	p3     = (float) p[15];
+	pi     = cc_clamp(p1 + 0.5f*s*(p2 - p0 + s*(2.0f*p0 - 5.0f*p1 + 4.0f*p2 - p3 + s*(3.0f*(p1 - p2) + p3 - p0))), 0.0f, 255.0f);
+	out[3] = (unsigned char) pi;
+}
+
+void
+texgz_tex_sampleBicubicRGBA(texgz_tex_t* self,
+                            float u, float v,
+                            unsigned char* pixel)
+{
+	ASSERT(self);
+	ASSERT(pixel);
+	ASSERT((u >= 0.0f) && (u <= 1.0f));
+	ASSERT((v >= 0.0f) && (v <= 1.0f));
+	ASSERT(self->type   == TEXGZ_UNSIGNED_BYTE);
+	ASSERT(self->format == TEXGZ_RGBA);
+
+	// http://paulbourke.net/miscellaneous/interpolation/
+	// https://www.paulinternet.nl/?page=bicubic
+
+	// "float indices"
+	float x = u*(self->width  - 1);
+	float y = v*(self->height - 1);
+
+	// determine indices to sample
+	int x1 = (int) x;
+	int y1 = (int) y;
+	int x0 = x1 - 1;
+	int y0 = y1 - 1;
+	int y2 = y1 + 1;
+	int x3 = x1 + 2;
+	int y3 = y1 + 2;
+
+	// double check the indices
+	if((x0 < 0) ||
+	   (y0 < 0) ||
+	   (x3 >= self->width) ||
+	   (y3 >= self->height))
+	{
+		texgz_tex_sample(self, u, v, 4, pixel);
+		return;
+	}
+
+	// compute interpolation coefficients
+	float s = x - ((float) x1);
+	float t = y - ((float) y1);
+
+	// sample interpolation values
+	int bpp = 4;
+	unsigned char* pixels  = self->pixels;
+	unsigned char* pixels0 = &pixels[bpp*(y0*self->stride + x0)];
+	unsigned char* pixels1 = &pixels[bpp*(y1*self->stride + x0)];
+	unsigned char* pixels2 = &pixels[bpp*(y2*self->stride + x0)];
+	unsigned char* pixels3 = &pixels[bpp*(y3*self->stride + x0)];
+	unsigned char  pixelsi[4*bpp];
+	texgz_tex_cubicInterpolateRGBA(pixels0, s, pixelsi),
+	texgz_tex_cubicInterpolateRGBA(pixels1, s, &pixelsi[bpp]),
+	texgz_tex_cubicInterpolateRGBA(pixels2, s, &pixelsi[2*bpp]),
+	texgz_tex_cubicInterpolateRGBA(pixels3, s, &pixelsi[3*bpp]),
+	texgz_tex_cubicInterpolateRGBA(pixelsi, t, pixel);
 }
 
 void texgz_tex_getPixel(texgz_tex_t* self,
