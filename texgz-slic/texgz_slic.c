@@ -121,9 +121,7 @@ texgz_slic_dist(texgz_slic_t* self,
 	float dy = (float) (y - cluster->y);
 	float dxy = sqrtf(dx*dx + dy*dy);
 
-	// TODO - m
-	float m = 10.0f;
-	return drgba + (m/self->s)*dxy;
+	return drgba + (self->m/self->s)*dxy;
 }
 
 static void texgz_slic_reset(texgz_slic_t* self)
@@ -156,7 +154,6 @@ static void texgz_slic_reset(texgz_slic_t* self)
 		}
 	}
 
-	// perterb cluster centers in neighborhood
 	int   xbest = 0;
 	int   ybest = 0;
 	float gbest = 0.0f;
@@ -169,6 +166,8 @@ static void texgz_slic_reset(texgz_slic_t* self)
 		{
 			cluster = texgz_slic_cluster(self, i, j);
 
+			// perterb cluster centers in a neighborhood
+			// to the lowest gradient position
 			int x0 = cluster->x - self->n/2;
 			int y0 = cluster->y - self->n/2;
 			int x1 = x0 + self->n;
@@ -229,7 +228,8 @@ static void texgz_slic_reset(texgz_slic_t* self)
 ***********************************************************/
 
 texgz_slic_t*
-texgz_slic_new(texgz_tex_t* tex, int s, int n)
+texgz_slic_new(texgz_tex_t* tex, int s, float m, int n,
+               int r)
 {
 	ASSERT(tex);
 
@@ -271,8 +271,10 @@ texgz_slic_new(texgz_tex_t* tex, int s, int n)
 
 	self->tex = tex;
 	self->s   = s;
-	self->k   = self->tex->width/s;
+	self->m   = m;
 	self->n   = n;
+	self->r   = r;
+	self->k   = self->tex->width/s;
 
 	self->supers = (texgz_slicSuper_t*)
 	               CALLOC(tex->width*tex->height,
@@ -413,7 +415,7 @@ float texgz_slic_step(texgz_slic_t* self)
 		}
 	}
 
-	// compute new cluster centers
+	// optionally recenter clusters
 	// compute average cluster pixel
 	for(i = 0; i < self->k; ++i)
 	{
@@ -423,8 +425,11 @@ float texgz_slic_step(texgz_slic_t* self)
 
 			if(cluster->step_count)
 			{
-				cluster->x        = cluster->step_x/cluster->step_count;
-				cluster->y        = cluster->step_y/cluster->step_count;
+				if(self->r)
+				{
+					cluster->x = cluster->step_x/cluster->step_count;
+					cluster->y = cluster->step_y/cluster->step_count;
+				}
 				cluster->pixel[0] = (unsigned char)
 				                    (cluster->step_pixel[0]/
 				                     cluster->step_count);

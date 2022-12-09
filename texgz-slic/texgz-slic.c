@@ -38,19 +38,26 @@
 
 int main(int argc, char** argv)
 {
-	if(argc != 5)
+	if(argc != 8)
 	{
-		LOGE("usage: %s s n input.png output.png", argv[0]);
+		LOGE("usage: %s s m n r steps input.png output.png",
+		     argv[0]);
 		LOGE("s: superpixel size (sxs)");
-		LOGE("n: neighborhood (nxn)");
+		LOGE("m: compactness control");
+		LOGE("n: gradient neighborhood (nxn)");
+		LOGE("r: recenter clusters");
+		LOGE("N: maximum step count");
 		return EXIT_FAILURE;
 	}
 
-	int s = (int) strtol(argv[1], NULL, 0);
-	int n = (int) strtol(argv[2], NULL, 0);
+	int   s = (int) strtol(argv[1], NULL, 0);
+	float m = strtof(argv[2], NULL);
+	int   n = (int) strtol(argv[3], NULL, 0);
+	int   r = (int) strtol(argv[4], NULL, 0);
+	int   N = (int) strtol(argv[5], NULL, 0);
 
-	const char* input  = argv[3];
-	const char* output = argv[4];
+	const char* input  = argv[6];
+	const char* output = argv[7];
 
 	texgz_tex_t* tex = texgz_png_import(input);
 	if(tex == NULL)
@@ -58,7 +65,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	texgz_slic_t* slic = texgz_slic_new(tex, s, n);
+	texgz_slic_t* slic = texgz_slic_new(tex, s, m, n, r);
 	if(slic == NULL)
 	{
 		goto fail_slic;
@@ -67,7 +74,7 @@ int main(int argc, char** argv)
 	// solve slic superpixels
 	// TODO - loop for N steps or until E <= thresh
 	int idx;
-	for(idx = 0; idx < 10; ++idx)
+	for(idx = 0; idx < N; ++idx)
 	{
 		texgz_slic_step(slic);
 	}

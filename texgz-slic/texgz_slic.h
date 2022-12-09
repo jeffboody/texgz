@@ -50,15 +50,18 @@ typedef struct
 typedef struct
 {
 	int                  s;   // superpixel size
+	float                m;   // compactness control
 	int                  n;   // gradient neighborhood
 	int                  k;   // cluster count K = k*k
+	int                  r;   // recenter
 	texgz_tex_t*         tex; // reference
 	texgz_slicSuper_t*   supers;
 	texgz_slicCluster_t* clusters;
 } texgz_slic_t;
 
 texgz_slic_t*        texgz_slic_new(texgz_tex_t* tex,
-                                    int s, int n);
+                                    int s, float m, int n,
+                                    int r);
 void                 texgz_slic_delete(texgz_slic_t** _self);
 float                texgz_slic_step(texgz_slic_t* self);
 texgz_slicSuper_t*   texgz_slic_super(texgz_slic_t* self,
