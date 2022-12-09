@@ -353,7 +353,11 @@ float texgz_slic_step(texgz_slic_t* self)
 		}
 	}
 
-	// update clusters
+	// assign superpixels to clusters
+	int   x;
+	int   y;
+	texgz_slicSuper_t* super;
+	unsigned char      pixel[4];
 	for(i = 0; i < self->k; ++i)
 	{
 		for(j = 0; j < self->k; ++j)
@@ -382,18 +386,14 @@ float texgz_slic_step(texgz_slic_t* self)
 				y1 = tex->height - 1;
 			}
 
-			// update pixels in cluster neighborhood with
-			// best dist/center
-			int   x;
-			int   y;
+			// assign superpixels in cluster neighborhood to
+			// cluster with lowest distance
 			float dist;
-			texgz_slicSuper_t* super;
-			unsigned char      pixel[4];
 			for(y = y0; y <= y1; ++y)
 			{
 				for(x = x0; x <= x1; ++x)
 				{
-					texgz_tex_getPixel(self->tex, x, y, pixel);
+					texgz_tex_getPixel(tex, x, y, pixel);
 					dist  = texgz_slic_dist(self, cluster, pixel, x, y);
 					super = texgz_slic_super(self, x, y);
 					if((super->step_cluster == NULL) ||
@@ -401,21 +401,34 @@ float texgz_slic_step(texgz_slic_t* self)
 					{
 						super->step_cluster = cluster;
 						super->step_dist    = dist;
-
-						++cluster->step_count;
-						cluster->step_x        += x;
-						cluster->step_y        += y;
-						cluster->step_pixel[0] += (uint32_t) pixel[0];
-						cluster->step_pixel[1] += (uint32_t) pixel[1];
-						cluster->step_pixel[2] += (uint32_t) pixel[2];
-						cluster->step_pixel[3] += (uint32_t) pixel[3];
 					}
 				}
 			}
 		}
 	}
 
-	// optionally recenter clusters
+	// compute cluster step sums
+	for(y = 0; y < tex->height; ++y)
+	{
+		for(x = 0; x < tex->width; ++x)
+		{
+			texgz_tex_getPixel(tex, x, y, pixel);
+			super   = texgz_slic_super(self, x, y);
+			cluster = super->step_cluster;
+			if(cluster)
+			{
+				++cluster->step_count;
+				cluster->step_x        += x;
+				cluster->step_y        += y;
+				cluster->step_pixel[0] += (uint32_t) pixel[0];
+				cluster->step_pixel[1] += (uint32_t) pixel[1];
+				cluster->step_pixel[2] += (uint32_t) pixel[2];
+				cluster->step_pixel[3] += (uint32_t) pixel[3];
+			}
+		}
+	}
+
+	// optionally recenter clusters to average center
 	// compute average cluster pixel
 	for(i = 0; i < self->k; ++i)
 	{
