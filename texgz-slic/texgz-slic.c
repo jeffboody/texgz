@@ -33,14 +33,58 @@
 #include "../texgz_png.h"
 
 /***********************************************************
+* private                                                  *
+***********************************************************/
+
+static int
+save_output(texgz_slic_t* slic, texgz_tex_t* sp,
+            float min, float max,
+            const char* fname)
+{
+	ASSERT(slic);
+	ASSERT(sp);
+	ASSERT(fname);
+
+	texgz_tex_t* out;
+	out = texgz_slic_output(slic, sp);
+	if(out == NULL)
+	{
+		return 0;
+	}
+
+	if(texgz_tex_convertF(out, min, max,
+	                      TEXGZ_UNSIGNED_BYTE,
+	                      TEXGZ_RGBA) == 0)
+	{
+		goto fail_convert_out;
+	}
+
+	if(texgz_png_export(out, fname) == 0)
+	{
+		goto fail_export;
+	}
+
+	texgz_tex_delete(&out);
+
+	// success
+	return 1;
+
+	// failure
+	fail_export:
+	fail_convert_out:
+		texgz_tex_delete(&out);
+	return 0;
+}
+
+/***********************************************************
 * public                                                   *
 ***********************************************************/
 
 int main(int argc, char** argv)
 {
-	if(argc != 8)
+	if(argc != 7)
 	{
-		LOGE("usage: %s s m n r steps input.png output.png",
+		LOGE("usage: %s s m n r steps prefix",
 		     argv[0]);
 		LOGE("s: superpixel size (sxs)");
 		LOGE("m: compactness control");
@@ -56,13 +100,21 @@ int main(int argc, char** argv)
 	int   r = (int) strtol(argv[4], NULL, 0);
 	int   N = (int) strtol(argv[5], NULL, 0);
 
-	const char* input  = argv[6];
-	const char* output = argv[7];
+	const char* prefix = argv[6];
+
+	char input[256];
+	snprintf(input, 256, "%s.png", prefix);
 
 	texgz_tex_t* tex = texgz_png_import(input);
 	if(tex == NULL)
 	{
 		return EXIT_FAILURE;
+	}
+
+	if(texgz_tex_convertF(tex, 0.0f, 1.0f,
+	                      TEXGZ_FLOAT, TEXGZ_RGBA) == 0)
+	{
+		goto fail_convert_tex;
 	}
 
 	texgz_slic_t* slic = texgz_slic_new(tex, s, m, n, r);
@@ -81,19 +133,47 @@ int main(int argc, char** argv)
 
 	// TODO - enforce connectivity
 
-	// save output
-	texgz_tex_t* out = texgz_slic_output(slic);
-	if(out == NULL)
-	{
-		goto fail_out;
-	}
+	// output names
+	char base[256];
+	char fname_avg[256];
+	char fname_stddev[256];
+	snprintf(base, 256, "%s-%i-%i-%i-%i",
+	         prefix, s, (int) (10.0f*m), n, r);
+	snprintf(fname_avg,    256, "%s-avg.png",    base);
+	snprintf(fname_stddev, 256, "%s-stddev.png", base);
 
-	if(texgz_png_export(out, output) == 0)
-	{
-		goto fail_export;
-	}
+	// save avg
+	save_output(slic, slic->sp_avg,
+	            0.0f, 1.0f, fname_avg);
 
-	texgz_tex_delete(&out);
+	// rescale/save stddev
+	int x;
+	int y;
+	float max = 0.0f;
+	float pixel[4];
+	for(y = 0; y < slic->sp_stddev->height; ++y)
+	{
+		for(x = 0; x < slic->sp_stddev->width; ++x)
+		{
+			texgz_tex_getPixelF(slic->sp_stddev, x, y, pixel);
+
+			if(pixel[0] > max)
+			{
+				max = pixel[0];
+			}
+			if(pixel[1] > max)
+			{
+				max = pixel[1];
+			}
+			if(pixel[2] > max)
+			{
+				max = pixel[2];
+			}
+		}
+	}
+	save_output(slic, slic->sp_stddev,
+	            0.0f, max, fname_stddev);
+
 	texgz_slic_delete(&slic);
 	texgz_tex_delete(&tex);
 
@@ -101,11 +181,8 @@ int main(int argc, char** argv)
 	return EXIT_SUCCESS;
 
 	// failure
-	fail_export:
-		texgz_tex_delete(&out);
-	fail_out:
-		texgz_slic_delete(&slic);
 	fail_slic:
+	fail_convert_tex:
 		texgz_tex_delete(&tex);
 	return EXIT_FAILURE;
 }

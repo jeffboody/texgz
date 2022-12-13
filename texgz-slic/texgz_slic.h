@@ -28,46 +28,55 @@
 
 typedef struct
 {
-	// cluster state
-	int           x;
-	int           y;
-	unsigned char pixel[4];
+	// index
+	int i;
+	int j;
 
-	// step state
-	uint32_t step_count;
-	uint32_t step_x;
-	uint32_t step_y;
-	uint32_t step_pixel[4];
+	// center
+	int x;
+	int y;
+
+	// center, avg and stddev sums
+	int   count;
+	int   sum_x;
+	int   sum_y;
+	float sum_pixel1[4];
+	float sum_pixel2[4];
 } texgz_slicCluster_t;
 
 typedef struct
 {
-	// step state
-	float                step_dist;
-	texgz_slicCluster_t* step_cluster;
-} texgz_slicSuper_t;
+	float                dist;
+	texgz_slicCluster_t* cluster;
+} texgz_slicSample_t;
 
 typedef struct
 {
-	int                  s;   // superpixel size
-	float                m;   // compactness control
-	int                  n;   // gradient neighborhood
-	int                  k;   // cluster count K = k*k
-	int                  r;   // recenter
-	texgz_tex_t*         tex; // reference
-	texgz_slicSuper_t*   supers;
+	int   s;  // superpixel size
+	float m;  // compactness control
+	int   n;  // gradient neighborhood
+	int   kw; // cluster count K = kw*kh
+	int   kh; // where kw,kh = width/s,height/s
+	int   recenter;
+
+	// input reference
+	texgz_tex_t* input;
+
+	// step state
 	texgz_slicCluster_t* clusters;
+	texgz_slicSample_t*  samples;
+
+	// superpixel features
+	texgz_tex_t* sp_avg;
+	texgz_tex_t* sp_stddev;
 } texgz_slic_t;
 
-texgz_slic_t*        texgz_slic_new(texgz_tex_t* tex,
-                                    int s, float m, int n,
-                                    int r);
-void                 texgz_slic_delete(texgz_slic_t** _self);
-float                texgz_slic_step(texgz_slic_t* self);
-texgz_slicSuper_t*   texgz_slic_super(texgz_slic_t* self,
-                                      int x, int y);
-texgz_slicCluster_t* texgz_slic_cluster(texgz_slic_t* self,
-                                        int i, int j);
-texgz_tex_t*         texgz_slic_output(texgz_slic_t* self);
+texgz_slic_t* texgz_slic_new(texgz_tex_t* input,
+                             int s, float m, int n,
+                             int recenter);
+void          texgz_slic_delete(texgz_slic_t** _self);
+float         texgz_slic_step(texgz_slic_t* self);
+texgz_tex_t*  texgz_slic_output(texgz_slic_t* self,
+                                texgz_tex_t* sp);
 
 #endif

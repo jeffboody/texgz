@@ -5,7 +5,7 @@ CLASSES = texgz_slic
 SOURCE  = $(TARGET).c $(CLASSES:%=%.c)
 OBJECTS = $(TARGET).o $(CLASSES:%=%.o)
 HFILES  = $(CLASSES:%=%.h)
-OPT     = -O2 -Wall
+OPT     = -O2 -Wall -Wno-format-truncation
 CFLAGS  = $(OPT) -I.
 LDFLAGS = -Ltexgz -ltexgz -Llibcc -lcc -ljpeg -lz -lm
 CCC     = gcc

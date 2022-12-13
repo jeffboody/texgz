@@ -100,7 +100,6 @@ texgz_png_compressAs(texgz_tex_t* self,
                      size_t* _size)
 {
 	ASSERT(self);
-	ASSERT(fname);
 	ASSERT(_data);
 	ASSERT(_size);
 

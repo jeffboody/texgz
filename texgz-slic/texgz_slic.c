@@ -27,7 +27,6 @@
 #include <string.h>
 
 #define LOG_TAG "texgz"
-#include "libcc/math/cc_pow2n.h"
 #include "libcc/cc_log.h"
 #include "libcc/cc_memory.h"
 #include "texgz/texgz_png.h"
@@ -36,6 +35,28 @@
 /***********************************************************
 * private                                                  *
 ***********************************************************/
+
+static texgz_slicCluster_t*
+texgz_slic_cluster(texgz_slic_t* self, int i, int j)
+{
+	ASSERT(self);
+	ASSERT(i < self->kh);
+	ASSERT(j < self->kw);
+
+	return &self->clusters[i*self->kw + j];
+}
+
+static texgz_slicSample_t*
+texgz_slic_sample(texgz_slic_t* self, int x, int y)
+{
+	ASSERT(self);
+
+	texgz_tex_t* input = self->input;
+	ASSERT(x < input->width);
+	ASSERT(y < input->height);
+
+	return &self->samples[y*input->stride + x];
+}
 
 static float
 texgz_slic_gradient(texgz_slic_t* self, int x, int y)
@@ -50,119 +71,90 @@ texgz_slic_gradient(texgz_slic_t* self, int x, int y)
 	int ym = y - 1;
 
 	// plus/minus pixels
-	unsigned char rgbap0[4];
-	unsigned char rgbam0[4];
-	unsigned char rgba0p[4];
-	unsigned char rgba0m[4];
-	texgz_tex_getPixel(self->tex, xp, y0, rgbap0);
-	texgz_tex_getPixel(self->tex, xm, y0, rgbam0);
-	texgz_tex_getPixel(self->tex, x0, yp, rgba0p);
-	texgz_tex_getPixel(self->tex, x0, ym, rgba0m);
-
-	// r/g/b/a float pixels
-	float rp0 = (float) rgbap0[0];
-	float rm0 = (float) rgbam0[0];
-	float r0p = (float) rgba0p[0];
-	float r0m = (float) rgba0m[0];
-	float gp0 = (float) rgbap0[1];
-	float gm0 = (float) rgbam0[1];
-	float g0p = (float) rgba0p[1];
-	float g0m = (float) rgba0m[1];
-	float bp0 = (float) rgbap0[2];
-	float bm0 = (float) rgbam0[2];
-	float b0p = (float) rgba0p[2];
-	float b0m = (float) rgba0m[2];
-	float ap0 = (float) rgbap0[3];
-	float am0 = (float) rgbam0[3];
-	float a0p = (float) rgba0p[3];
-	float a0m = (float) rgba0m[3];
+	float pixel_p0[4];
+	float pixel_m0[4];
+	float pixel_0p[4];
+	float pixel_0m[4];
+	texgz_tex_getPixelF(self->input, xp, y0, pixel_p0);
+	texgz_tex_getPixelF(self->input, xm, y0, pixel_m0);
+	texgz_tex_getPixelF(self->input, x0, yp, pixel_0p);
+	texgz_tex_getPixelF(self->input, x0, ym, pixel_0m);
 
 	// r/g/b/a deltas
-	float rdx = rp0 - rm0;
-	float rdy = r0p - r0m;
-	float gdx = gp0 - gm0;
-	float gdy = g0p - g0m;
-	float bdx = bp0 - bm0;
-	float bdy = b0p - b0m;
-	float adx = ap0 - am0;
-	float ady = a0p - a0m;
+	float dxr = pixel_p0[0] - pixel_m0[0];
+	float dyr = pixel_0p[0] - pixel_0m[0];
+	float dxg = pixel_p0[1] - pixel_m0[1];
+	float dyg = pixel_0p[1] - pixel_0m[1];
+	float dxb = pixel_p0[2] - pixel_m0[2];
+	float dyb = pixel_0p[2] - pixel_0m[2];
+	float dxa = pixel_p0[3] - pixel_m0[3];
+	float dya = pixel_0p[3] - pixel_0m[3];
 
 	// solve L2 norms
 	// https://mathworld.wolfram.com/L2-Norm.html
-	return sqrtf(rdx*rdx + gdx*gdx + bdx*bdx + adx*adx) +
-	       sqrtf(rdy*rdy + gdy*gdy + bdy*bdy + ady*ady);
+	return sqrtf(dxr*dxr + dxg*dxg + dxb*dxb + dxa*dxa) +
+	       sqrtf(dyr*dyr + dyg*dyg + dyb*dyb + dya*dya);
 }
 
 static float
 texgz_slic_dist(texgz_slic_t* self,
                 texgz_slicCluster_t* cluster,
-                unsigned char* pixel,
-                int x, int y)
+                float* pixel, int x, int y)
 {
 	ASSERT(self);
 	ASSERT(cluster);
 	ASSERT(pixel);
 
-	float dr = ((float) cluster->pixel[0]) -
-	           ((float) pixel[0]);
-	float dg = ((float) cluster->pixel[1]) -
-	           ((float) pixel[1]);
-	float db = ((float) cluster->pixel[2]) -
-	           ((float) pixel[2]);
-	float da = ((float) cluster->pixel[3]) -
-	           ((float) pixel[3]);
-	dr /= 255.0f;
-	dg /= 255.0f;
-	db /= 255.0f;
-	da /= 255.0f;
-	float drgba = sqrtf(dr*dr + dg*dg + db*db * da*da);
-
+	int i = cluster->i;
+	int j = cluster->j;
+	float avg[4];
+	texgz_tex_getPixelF(self->sp_avg, j, i, avg);
+	float dr = pixel[0] - avg[0];
+	float dg = pixel[1] - avg[1];
+	float db = pixel[2] - avg[2];
+	float da = pixel[3] - avg[3];
+	float dp = sqrtf(dr*dr + dg*dg + db*db * da*da);
 	float dx = (float) (x - cluster->x);
 	float dy = (float) (y - cluster->y);
 	float dxy = sqrtf(dx*dx + dy*dy);
 
-	return drgba + (self->m/self->s)*dxy;
+	return dp + (self->m/self->s)*dxy;
 }
 
 static void texgz_slic_reset(texgz_slic_t* self)
 {
 	ASSERT(self);
 
-	texgz_tex_t* tex = self->tex;
-
+	// reset cluster indices/centers
 	int i;
 	int j;
-	int x;
-	int y;
-	int w   = tex->width;
-	int h   = tex->height;
-	int wk  = w/self->k;
-	int hk  = h/self->k;
-	int wk2 = wk/2;
-	int hk2 = hk/2;
-
-	// reset cluster centers
+	int s  = self->s;
+	int s2 = s/2;
 	texgz_slicCluster_t* cluster;
-	for(i = 0; i < self->k; ++i)
+	for(i = 0; i < self->kh; ++i)
 	{
-		for(j = 0; j < self->k; ++j)
+		for(j = 0; j < self->kw; ++j)
 		{
 			cluster = texgz_slic_cluster(self, i, j);
 
-			cluster->x = wk*j + wk2;
-			cluster->y = hk*i + hk2;
+			cluster->i = i;
+			cluster->j = j;
+			cluster->x = s*j + s2;
+			cluster->y = s*i + s2;
 		}
 	}
 
-	int   xbest = 0;
-	int   ybest = 0;
+	int   x;
+	int   y;
+	int   cx    = 0;
+	int   cy    = 0;
 	float gbest = 0.0f;
 	float g;
-	uint32_t      rgba[4];
-	unsigned char pixel[4];
-	for(i = 0; i < self->k; ++i)
+	float avg[4];
+	float pixel[4];
+	for(i = 0; i < self->kh; ++i)
 	{
-		for(j = 0; j < self->k; ++j)
+		for(j = 0; j < self->kw; ++j)
 		{
 			cluster = texgz_slic_cluster(self, i, j);
 
@@ -179,46 +171,44 @@ static void texgz_slic_reset(texgz_slic_t* self)
 					g = texgz_slic_gradient(self, x, y);
 					if(((x == x0) && (y == y0)) || (g < gbest))
 					{
-						xbest = x;
-						ybest = y;
+						cx    = x;
+						cy    = y;
 						gbest = g;
 					}
 				}
 			}
 
 			// compute average cluster pixel
-			x0      = j*self->s;
-			y0      = i*self->s;
-			x1      = x0 + self->s;
-			y1      = y0 + self->s;
-			rgba[0] = 0;
-			rgba[1] = 0;
-			rgba[2] = 0;
-			rgba[3] = 0;
+			x0     = j*s;
+			y0     = i*s;
+			x1     = x0 + s;
+			y1     = y0 + s;
+			avg[0] = 0;
+			avg[1] = 0;
+			avg[2] = 0;
+			avg[3] = 0;
 			for(y = y0; y < y1; ++y)
 			{
 				for(x = x0; x < x1; ++x)
 				{
-					texgz_tex_getPixel(self->tex, x, y, pixel);
-					rgba[0] += (uint32_t) pixel[0];
-					rgba[1] += (uint32_t) pixel[1];
-					rgba[2] += (uint32_t) pixel[2];
-					rgba[3] += (uint32_t) pixel[3];
+					texgz_tex_getPixelF(self->input, x, y, pixel);
+					avg[0] += pixel[0];
+					avg[1] += pixel[1];
+					avg[2] += pixel[2];
+					avg[3] += pixel[3];
 				}
 			}
-			int S = self->s*self->s;
-			rgba[0] /= S;
-			rgba[1] /= S;
-			rgba[2] /= S;
-			rgba[3] /= S;
+			int S = s*s;
+			avg[0] /= S;
+			avg[1] /= S;
+			avg[2] /= S;
+			avg[3] /= S;
 
 			// update cluster
-			cluster->x        = xbest;
-			cluster->y        = ybest;
-			cluster->pixel[0] = (unsigned char) rgba[0];
-			cluster->pixel[1] = (unsigned char) rgba[1];
-			cluster->pixel[2] = (unsigned char) rgba[2];
-			cluster->pixel[3] = (unsigned char) rgba[3];
+			cluster->x = cx;
+			cluster->y = cy;
+
+			texgz_tex_setPixelF(self->sp_avg, j, i, avg);
 		}
 	}
 }
@@ -228,10 +218,10 @@ static void texgz_slic_reset(texgz_slic_t* self)
 ***********************************************************/
 
 texgz_slic_t*
-texgz_slic_new(texgz_tex_t* tex, int s, float m, int n,
-               int r)
+texgz_slic_new(texgz_tex_t* input, int s, float m, int n,
+               int recenter)
 {
-	ASSERT(tex);
+	ASSERT(input);
 
 	texgz_slic_t* self;
 	self = (texgz_slic_t*)
@@ -242,54 +232,73 @@ texgz_slic_new(texgz_tex_t* tex, int s, float m, int n,
 		return NULL;
 	}
 
-	// check for required tex attributes
-	if((tex->width  != tex->height)               ||
-	   (tex->width  != cc_next_pow2n(tex->width)) ||
-	   (tex->type   != TEXGZ_UNSIGNED_BYTE)       ||
-	   (tex->format != TEXGZ_RGBA))
+	// check required input attributes
+	if((input->type   != TEXGZ_FLOAT) ||
+	   (input->format != TEXGZ_RGBA))
 	{
 		LOGE("invalid width=%i, height=%i, "
 		     "type=0x%X, format=0x%X",
-		     tex->width, tex->height,
-		     tex->type, tex->format);
-		goto fail_tex_attr;
+		     input->width, input->height,
+		     input->type, input->format);
+		goto fail_input_attr;
 	}
 
-	// check slic attributes
-	// s must be power-of-two
-	// s must be less than width
+	// check required slic attributes
+	// width and height must be greater than s
+	// width and height must be a multiple of s
 	// n must smaller than s
 	// n must be odd size
-	if((s != cc_next_pow2n(s)) ||
-	   (s >= tex->width) ||
+	if((input->width  < s)      ||
+	   (input->height < s)      ||
+	   ((input->width%s)  != 0) ||
+	   ((input->height%s) != 0) ||
 	   (n >= s) || (n%2 != 1))
 	{
-		LOGE("invalid s=%i, width=%i, n=%i",
-		     s, tex->width, n);
+		LOGE("invalid s=%i, n=%i, width=%i, height=%i",
+		     s, n, input->width, input->height);
 		goto fail_slic_attr;
 	}
 
-	self->tex = tex;
-	self->s   = s;
-	self->m   = m;
-	self->n   = n;
-	self->r   = r;
-	self->k   = self->tex->width/s;
-
-	self->supers = (texgz_slicSuper_t*)
-	               CALLOC(tex->width*tex->height,
-	                      sizeof(texgz_slicSuper_t));
-	if(self->supers == NULL)
-	{
-		goto fail_supers;
-	}
+	self->s  = s;
+	self->m  = m;
+	self->n  = n;
+	self->kw = input->width/s;
+	self->kh = input->height/s;
+	self->recenter = recenter;
+	self->input    = input;
 
 	self->clusters = (texgz_slicCluster_t*)
-	                 CALLOC(self->k*self->k,
+	                 CALLOC(self->kw*self->kh,
 	                        sizeof(texgz_slicCluster_t));
 	if(self->clusters == NULL)
 	{
 		goto fail_clusters;
+	}
+
+	self->samples = (texgz_slicSample_t*)
+	               CALLOC(input->width*input->height,
+	                      sizeof(texgz_slicSample_t));
+	if(self->samples == NULL)
+	{
+		goto fail_samples;
+	}
+
+	self->sp_avg = texgz_tex_new(self->kw, self->kh,
+	                             self->kw, self->kh,
+	                             TEXGZ_FLOAT,
+	                             TEXGZ_RGBA, NULL);
+	if(self->sp_avg == NULL)
+	{
+		goto fail_sp_avg;
+	}
+
+	self->sp_stddev = texgz_tex_new(self->kw, self->kh,
+	                                self->kw, self->kh,
+	                                TEXGZ_FLOAT,
+	                                TEXGZ_RGBA, NULL);
+	if(self->sp_stddev == NULL)
+	{
+		goto fail_sp_stddev;
 	}
 
 	texgz_slic_reset(self);
@@ -298,11 +307,15 @@ texgz_slic_new(texgz_tex_t* tex, int s, float m, int n,
 	return self;
 
 	// failure
+	fail_sp_stddev:
+		texgz_tex_delete(&self->sp_avg);
+	fail_sp_avg:
+		FREE(self->samples);
+	fail_samples:
+		FREE(self->clusters);
 	fail_clusters:
-		FREE(self->supers);
-	fail_supers:
 	fail_slic_attr:
-	fail_tex_attr:
+	fail_input_attr:
 		FREE(self);
 	return NULL;
 }
@@ -314,8 +327,10 @@ void texgz_slic_delete(texgz_slic_t** _self)
 	texgz_slic_t* self = *_self;
 	if(self)
 	{
+		texgz_tex_delete(&self->sp_stddev);
+		texgz_tex_delete(&self->sp_avg);
+		FREE(self->samples);
 		FREE(self->clusters);
-		FREE(self->supers);
 		FREE(self);
 		*_self = NULL;
 	}
@@ -325,42 +340,44 @@ float texgz_slic_step(texgz_slic_t* self)
 {
 	ASSERT(self);
 
-	texgz_tex_t* tex = self->tex;
-
-	// reset supers
-	int    w    = tex->width;
-	int    h    = tex->height;
-	size_t size = w*h*sizeof(texgz_slicSuper_t);
-	memset(self->supers, 0, size);
+	texgz_tex_t* input = self->input;
 
 	// reset clusters
 	int i;
 	int j;
 	texgz_slicCluster_t* cluster;
-	for(i = 0; i < self->k; ++i)
+	for(i = 0; i < self->kh; ++i)
 	{
-		for(j = 0; j < self->k; ++j)
+		for(j = 0; j < self->kw; ++j)
 		{
 			cluster = texgz_slic_cluster(self, i, j);
 
-			cluster->step_count    = 0;
-			cluster->step_x        = 0;
-			cluster->step_y        = 0;
-			cluster->step_pixel[0] = 0;
-			cluster->step_pixel[1] = 0;
-			cluster->step_pixel[2] = 0;
-			cluster->step_pixel[3] = 0;
+			cluster->count         = 0;
+			cluster->sum_x         = 0;
+			cluster->sum_y         = 0;
+			cluster->sum_pixel1[0] = 0.0f;
+			cluster->sum_pixel1[1] = 0.0f;
+			cluster->sum_pixel1[2] = 0.0f;
+			cluster->sum_pixel1[3] = 0.0f;
+			cluster->sum_pixel2[0] = 0.0f;
+			cluster->sum_pixel2[1] = 0.0f;
+			cluster->sum_pixel2[2] = 0.0f;
+			cluster->sum_pixel2[3] = 0.0f;
 		}
 	}
 
-	// assign superpixels to clusters
-	int   x;
-	int   y;
-	texgz_slicSuper_t* super;
-	unsigned char      pixel[4];
-	for(i = 0; i < self->k; ++i)
+	// reset samples
+	size_t size = MEMSIZEPTR(self->samples);
+	memset(self->samples, 0, size);
+
+	// assign samples to clusters
+	int x;
+	int y;
+	texgz_slicSample_t* sample;
+	float               pixel[4];
+	for(i = 0; i < self->kh; ++i)
 	{
-		for(j = 0; j < self->k; ++j)
+		for(j = 0; j < self->kw; ++j)
 		{
 			cluster = texgz_slic_cluster(self, i, j);
 
@@ -377,84 +394,133 @@ float texgz_slic_step(texgz_slic_t* self)
 			{
 				y0 = 0;
 			}
-			if(x1 >= tex->width)
+			if(x1 >= input->width)
 			{
-				x1 = tex->width - 1;
+				x1 = input->width - 1;
 			}
-			if(y1 >= tex->height)
+			if(y1 >= input->height)
 			{
-				y1 = tex->height - 1;
+				y1 = input->height - 1;
 			}
 
-			// assign superpixels in cluster neighborhood to
+			// assign samples in cluster neighborhood to
 			// cluster with lowest distance
 			float dist;
 			for(y = y0; y <= y1; ++y)
 			{
 				for(x = x0; x <= x1; ++x)
 				{
-					texgz_tex_getPixel(tex, x, y, pixel);
-					dist  = texgz_slic_dist(self, cluster, pixel, x, y);
-					super = texgz_slic_super(self, x, y);
-					if((super->step_cluster == NULL) ||
-					   (super->step_dist > dist))
+					texgz_tex_getPixelF(input, x, y, pixel);
+					dist   = texgz_slic_dist(self, cluster, pixel, x, y);
+					sample = texgz_slic_sample(self, x, y);
+					if((sample->cluster == NULL) ||
+					   (sample->dist > dist))
 					{
-						super->step_cluster = cluster;
-						super->step_dist    = dist;
+						sample->dist    = dist;
+						sample->cluster = cluster;
 					}
 				}
 			}
 		}
 	}
 
-	// compute cluster step sums
-	for(y = 0; y < tex->height; ++y)
+	// compute center and pixel sums
+	for(y = 0; y < input->height; ++y)
 	{
-		for(x = 0; x < tex->width; ++x)
+		for(x = 0; x < input->width; ++x)
 		{
-			texgz_tex_getPixel(tex, x, y, pixel);
-			super   = texgz_slic_super(self, x, y);
-			cluster = super->step_cluster;
-			if(cluster)
+			sample  = texgz_slic_sample(self, x, y);
+			cluster = sample->cluster;
+			if(cluster == NULL)
 			{
-				++cluster->step_count;
-				cluster->step_x        += x;
-				cluster->step_y        += y;
-				cluster->step_pixel[0] += (uint32_t) pixel[0];
-				cluster->step_pixel[1] += (uint32_t) pixel[1];
-				cluster->step_pixel[2] += (uint32_t) pixel[2];
-				cluster->step_pixel[3] += (uint32_t) pixel[3];
+				continue;
+			}
+
+			texgz_tex_getPixelF(input, x, y, pixel);
+
+			++cluster->count;
+			cluster->sum_x         += x;
+			cluster->sum_y         += y;
+			cluster->sum_pixel1[0] += pixel[0];
+			cluster->sum_pixel1[1] += pixel[1];
+			cluster->sum_pixel1[2] += pixel[2];
+			cluster->sum_pixel1[3] += pixel[3];
+		}
+	}
+
+	// compute avg
+	for(i = 0; i < self->kh; ++i)
+	{
+		for(j = 0; j < self->kw; ++j)
+		{
+			cluster = texgz_slic_cluster(self, i, j);
+
+			if(cluster->count)
+			{
+				// optionally recenter cluster centers
+				if(self->recenter)
+				{
+					cluster->x = cluster->sum_x/cluster->count;
+					cluster->y = cluster->sum_y/cluster->count;
+				}
+
+				pixel[0] = cluster->sum_pixel1[0]/cluster->count;
+				pixel[1] = cluster->sum_pixel1[1]/cluster->count;
+				pixel[2] = cluster->sum_pixel1[2]/cluster->count;
+				pixel[3] = cluster->sum_pixel1[3]/cluster->count;
+				texgz_tex_setPixelF(self->sp_avg, j, i, pixel);
 			}
 		}
 	}
 
-	// optionally recenter clusters to average center
-	// compute average cluster pixel
-	for(i = 0; i < self->k; ++i)
+	// compute stddev sums
+	float avg[4];
+	float dp[4];
+	for(y = 0; y < input->height; ++y)
 	{
-		for(j = 0; j < self->k; ++j)
+		for(x = 0; x < input->width; ++x)
+		{
+			sample  = texgz_slic_sample(self, x, y);
+			cluster = sample->cluster;
+			if(cluster == NULL)
+			{
+				continue;
+			}
+
+			texgz_tex_getPixelF(input, x, y, pixel);
+
+			i = cluster->i;
+			j = cluster->j;
+			texgz_tex_getPixelF(self->sp_avg, j, i, avg);
+
+			dp[0] = pixel[0] - avg[0];
+			dp[1] = pixel[1] - avg[1];
+			dp[2] = pixel[2] - avg[2];
+			dp[3] = pixel[3] - avg[3];
+
+			cluster->sum_pixel2[0] += dp[0]*dp[0];
+			cluster->sum_pixel2[1] += dp[1]*dp[1];
+			cluster->sum_pixel2[2] += dp[2]*dp[2];
+			cluster->sum_pixel2[3] += dp[3]*dp[3];
+		}
+	}
+
+	// compute stddev
+	// stddev = sqrt((1/N)*SUM((x-mu)^2))
+	// https://en.wikipedia.org/wiki/Standard_deviation
+	for(i = 0; i < self->kh; ++i)
+	{
+		for(j = 0; j < self->kw; ++j)
 		{
 			cluster = texgz_slic_cluster(self, i, j);
 
-			if(cluster->step_count)
+			if(cluster->count)
 			{
-				if(self->r)
-				{
-					cluster->x = cluster->step_x/cluster->step_count;
-					cluster->y = cluster->step_y/cluster->step_count;
-				}
-				cluster->pixel[0] = (unsigned char)
-				                    (cluster->step_pixel[0]/
-				                     cluster->step_count);
-				cluster->pixel[1] = (unsigned char)
-				                    (cluster->step_pixel[1]/
-				                     cluster->step_count);
-				cluster->pixel[2] = (unsigned char)
-				                    (cluster->step_pixel[2]/
-				                     cluster->step_count);
-				cluster->pixel[3] = (unsigned char)
-				                    (cluster->step_pixel[3]/
-				                     cluster->step_count);
+				pixel[0] = sqrtf(cluster->sum_pixel2[0]/cluster->count);
+				pixel[1] = sqrtf(cluster->sum_pixel2[1]/cluster->count);
+				pixel[2] = sqrtf(cluster->sum_pixel2[2]/cluster->count);
+				pixel[3] = sqrtf(cluster->sum_pixel2[3]/cluster->count);
+				texgz_tex_setPixelF(self->sp_stddev, j, i, pixel);
 			}
 		}
 	}
@@ -464,57 +530,41 @@ float texgz_slic_step(texgz_slic_t* self)
 	return 0.0f;
 }
 
-texgz_slicSuper_t*
-texgz_slic_super(texgz_slic_t* self, int x, int y)
+texgz_tex_t* texgz_slic_output(texgz_slic_t* self,
+                               texgz_tex_t* sp)
 {
 	ASSERT(self);
+	ASSERT(sp);
 
-	texgz_tex_t* tex = self->tex;
-
-	return &self->supers[y*tex->stride + x];
-}
-
-texgz_slicCluster_t*
-texgz_slic_cluster(texgz_slic_t* self, int i, int j)
-{
-	ASSERT(self);
-
-	return &self->clusters[i*self->k + j];
-}
-
-texgz_tex_t* texgz_slic_output(texgz_slic_t* self)
-{
-	ASSERT(self);
-
-	texgz_tex_t* tex = self->tex;
+	texgz_tex_t* input = self->input;
 
 	texgz_tex_t* out;
-	out = texgz_tex_new(tex->width, tex->height,
-	                    tex->width, tex->height,
-	                    tex->type, tex->format,
+	out = texgz_tex_new(input->width, input->height,
+	                    input->width, input->height,
+	                    input->type, input->format,
 	                    NULL);
 	if(out == NULL)
 	{
-		return NULL;
+	        return NULL;
 	}
 
 	// copy pixels
-	int x;
-	int y;
-	unsigned char        pixel[4];
-	texgz_slicSuper_t*   super;
-	texgz_slicCluster_t* cluster;
+	int   x;
+	int   y;
+	float pixel[4];
+	texgz_slicSample_t* sample;
 	for(y = 0; y < out->height; ++y)
 	{
 		for(x = 0; x < out->width; ++x)
 		{
-			super   = texgz_slic_super(self, x, y);
-			cluster = super->step_cluster;
-			if(cluster)
+			sample = texgz_slic_sample(self, x, y);
+			if(sample->cluster)
 			{
-				texgz_tex_getPixel(tex, cluster->x, cluster->y,
-				                   pixel);
-				texgz_tex_setPixel(out, x, y, pixel);
+				texgz_tex_getPixelF(sp,
+				                    sample->cluster->j,
+				                    sample->cluster->i,
+				                    pixel);
+				texgz_tex_setPixelF(out, x, y, pixel);
 			}
 		}
 	}
