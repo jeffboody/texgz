@@ -27,6 +27,7 @@
 #include <zlib.h>
 
 #define LOG_TAG "texgz"
+#include "../libcc/math/cc_float.h"
 #include "../libcc/cc_log.h"
 #include "../libcc/cc_memory.h"
 #include "../libcc/math/cc_float.h"
@@ -610,6 +611,57 @@ static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
 	return tex;
 }
 
+static texgz_tex_t*
+texgz_tex_FFFFto8888(texgz_tex_t* self, float min, float max)
+{
+	ASSERT(self);
+
+	if((self->type != TEXGZ_FLOAT) ||
+	   (self->format != TEXGZ_RGBA))
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_RGBA,
+                        NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	int x, y, idx;
+	float* fpixels = (float*) self->pixels;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = 4*(y*tex->stride + x);
+			float*         src = &fpixels[idx];
+			unsigned char* dst = &tex->pixels[idx];
+
+			dst[0] = (unsigned char)
+			         cc_clamp(255.0f*(src[0] + min)/(max - min),
+			                  0.0f, 255.0f);
+			dst[1] = (unsigned char)
+			         cc_clamp(255.0f*(src[1] + min)/(max - min),
+			                  0.0f, 255.0f);
+			dst[2] = (unsigned char)
+			         cc_clamp(255.0f*(src[2] + min)/(max - min),
+			                  0.0f, 255.0f);
+			dst[3] = (unsigned char)
+			         cc_clamp(255.0f*(src[3] + min)/(max - min),
+			                  0.0f, 255.0f);
+		}
+	}
+
+	return tex;
+}
+
 static texgz_tex_t* texgz_tex_8888to4444(texgz_tex_t* self)
 {
 	ASSERT(self);
@@ -926,6 +978,48 @@ static texgz_tex_t* texgz_tex_8888toF(texgz_tex_t* self)
 
 			// use the red channel for luminance
 			dst[0] = ((float) src[0])/255.0f;
+		}
+	}
+
+	return tex;
+}
+
+static texgz_tex_t*
+texgz_tex_8888toFFFF(texgz_tex_t* self,
+                     float min, float max)
+{
+	ASSERT(self);
+
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_FLOAT, TEXGZ_RGBA,
+                        NULL);
+	if(tex == NULL)
+		return NULL;
+
+	int x, y, idx;
+	float* fpixels = (float*) tex->pixels;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = 4*(y*tex->stride + x);
+			unsigned char* src = &self->pixels[idx];
+			float*         dst = &fpixels[idx];
+
+			dst[0] = (max - min)*((float) src[0])/255.0f - min;
+			dst[1] = (max - min)*((float) src[1])/255.0f - min;
+			dst[2] = (max - min)*((float) src[2])/255.0f - min;
+			dst[3] = (max - min)*((float) src[3])/255.0f - min;
 		}
 	}
 
@@ -1478,7 +1572,7 @@ texgz_tex_lineDrawClippedF(texgz_tex_t* self,
 	}
 
 	// fill first pixel
-	texgz_tex_setPixelF(self, px, py, pixel);
+	texgz_tex_setPixelF(self, px, py, &pixel);
 	while((*finalpos) - (*curpos))
 	{
 		if(d <= 0)
@@ -1493,7 +1587,7 @@ texgz_tex_lineDrawClippedF(texgz_tex_t* self,
 			px += px2_incr;
 			py += py2_incr;
 		}
-		texgz_tex_setPixelF(self, px, py, pixel);
+		texgz_tex_setPixelF(self, px, py, &pixel);
 	}
 }
 
@@ -1743,6 +1837,9 @@ texgz_tex_new(int width, int height,
 		; // ok
 	else if((type == TEXGZ_FLOAT) &&
 	        (format == TEXGZ_LUMINANCE))
+		; // ok
+	else if((type == TEXGZ_FLOAT) &&
+	        (format == TEXGZ_RGBA))
 		; // ok
 	else
 	{
@@ -2506,6 +2603,30 @@ int texgz_tex_convert(texgz_tex_t* self, int type,
 	return 1;
 }
 
+int texgz_tex_convertF(texgz_tex_t* self,
+                       float min, float max,
+                       int type, int format)
+{
+	ASSERT(self);
+
+	// already in requested format
+	if((type == self->type) && (format == self->format))
+		return 1;
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_convertFcopy(self, min, max, type, format);
+	if(tex == NULL)
+		return 0;
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
 texgz_tex_t*
 texgz_tex_convertcopy(texgz_tex_t* self, int type,
                       int format)
@@ -2556,6 +2677,9 @@ texgz_tex_convertcopy(texgz_tex_t* self, int type,
 	else if((self->type == TEXGZ_FLOAT) &&
 	        (self->format == TEXGZ_LUMINANCE))
 		tmp = texgz_tex_Fto8888(self);
+	else if((self->type == TEXGZ_FLOAT) &&
+	        (self->format == TEXGZ_RGBA))
+		tmp = texgz_tex_FFFFto8888(self, 0.0f, 1.0f);
 	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
 	        (self->format == TEXGZ_BGRA))
 		tmp = texgz_tex_8888format(self, TEXGZ_RGBA);
@@ -2599,6 +2723,9 @@ texgz_tex_convertcopy(texgz_tex_t* self, int type,
 	else if((type == TEXGZ_FLOAT) &&
 	        (format == TEXGZ_LUMINANCE))
 		tex = texgz_tex_8888toF(tmp);
+	else if((type == TEXGZ_FLOAT) &&
+	        (format == TEXGZ_RGBA))
+		tex = texgz_tex_8888toFFFF(tmp, 0.0f, 1.0f);
 	else if((type == TEXGZ_UNSIGNED_BYTE) &&
 	        (format == TEXGZ_BGRA))
 		tex = texgz_tex_8888format(tmp, TEXGZ_BGRA);
@@ -2625,6 +2752,35 @@ texgz_tex_convertcopy(texgz_tex_t* self, int type,
 
 	// success
 	return tex;
+}
+
+texgz_tex_t*
+texgz_tex_convertFcopy(texgz_tex_t* self,
+                       float min, float max,
+                       int type, int format)
+{
+	ASSERT(self);
+
+	if((self->type   == TEXGZ_FLOAT)         &&
+	   (self->format == TEXGZ_RGBA)          &&
+	   (type         == TEXGZ_UNSIGNED_BYTE) &&
+	   (format       == TEXGZ_RGBA))
+	{
+		return texgz_tex_FFFFto8888(self, min, max);
+	}
+	else if((self->type   == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_RGBA)          &&
+	        (type         == TEXGZ_FLOAT)         &&
+	        (format       == TEXGZ_RGBA))
+	{
+		return texgz_tex_8888toFFFF(self, min, max);
+	}
+	else
+	{
+		LOGE("invalid type=0x%X:0x%X, format=0x%X:0x%X",
+		     self->type, type, self->format, format);
+		return NULL;
+	}
 }
 
 int texgz_tex_flipvertical(texgz_tex_t* self)
@@ -3252,17 +3408,29 @@ void texgz_tex_getPixel(texgz_tex_t* self,
 	}
 }
 
-float texgz_tex_getPixelF(texgz_tex_t* self,
-                          int x, int y)
+void texgz_tex_getPixelF(texgz_tex_t* self,
+                         int x, int y, float* pixel)
 {
 	ASSERT(self);
-	ASSERT(self->type   == TEXGZ_FLOAT);
-	ASSERT(self->format == TEXGZ_LUMINANCE);
+	ASSERT(self->type == TEXGZ_FLOAT);
+	ASSERT((self->format == TEXGZ_LUMINANCE) ||
+	       (self->format == TEXGZ_RGBA));
 
-	int idx = y*self->stride + x;
-
+	int    idx;
 	float* pixels = (float*) self->pixels;
-	return pixels[idx];
+	if(self->format == TEXGZ_RGBA)
+	{
+		idx = 4*(y*self->stride + x);
+		pixel[0] = pixels[idx];
+		pixel[1] = pixels[idx + 1];
+		pixel[2] = pixels[idx + 2];
+		pixel[3] = pixels[idx + 3];
+	}
+	else
+	{
+		idx = y*self->stride + x;
+		pixel[0] = pixels[idx];
+	}
 }
 
 void texgz_tex_setPixel(texgz_tex_t* self,
@@ -3301,16 +3469,29 @@ void texgz_tex_setPixel(texgz_tex_t* self,
 
 void texgz_tex_setPixelF(texgz_tex_t* self,
                          int x, int y,
-                         float pixel)
+                         float* pixel)
 {
 	ASSERT(self);
-	ASSERT(self->type   == TEXGZ_FLOAT);
-	ASSERT(self->format == TEXGZ_LUMINANCE);
+	ASSERT(pixel);
+	ASSERT(self->type == TEXGZ_FLOAT);
+	ASSERT((self->format == TEXGZ_LUMINANCE) ||
+	       (self->format == TEXGZ_RGBA));
 
-	int idx = y*self->stride + x;
-
+	int    idx;
 	float* pixels = (float*) self->pixels;
-	pixels[idx] = pixel;
+	if(self->format == TEXGZ_RGBA)
+	{
+		idx = 4*(y*self->stride + x);
+		pixels[idx]     = pixel[0];
+		pixels[idx + 1] = pixel[1];
+		pixels[idx + 2] = pixel[2];
+		pixels[idx + 3] = pixel[3];
+	}
+	else
+	{
+		idx = y*self->stride + x;
+		pixels[idx] = pixel[0];
+	}
 }
 
 int texgz_tex_mipmap(texgz_tex_t* self, int miplevels,
@@ -3398,6 +3579,11 @@ int texgz_tex_bpp(texgz_tex_t* self)
 	        (self->format == TEXGZ_LUMINANCE))
 	{
 		bpp = 4;
+	}
+	else if((self->type == TEXGZ_FLOAT) &&
+	        (self->format == TEXGZ_RGBA))
+	{
+		bpp = 16;
 	}
 	else if((self->type == TEXGZ_UNSIGNED_SHORT_5_6_5) &&
 	        (self->format == TEXGZ_RGB))

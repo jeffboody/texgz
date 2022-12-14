@@ -1,3 +1,5 @@
+export CC_USE_MATH = 1
+
 TARGET  = libtexgz.a
 CLASSES = texgz_tex texgz_jpeg texgz_png
 ifeq ($(TEXGZ_USE_JP2),1)

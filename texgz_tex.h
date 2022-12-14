@@ -85,8 +85,16 @@ texgz_tex_t* texgz_tex_importd(size_t size,
 int          texgz_tex_export(texgz_tex_t* self, const char* filename);
 int          texgz_tex_exportz(texgz_tex_t* self, const char* filename);
 int          texgz_tex_exportf(texgz_tex_t* self, FILE* f);
-int          texgz_tex_convert(texgz_tex_t* self, int type, int format);
-texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self, int type, int format);
+int          texgz_tex_convert(texgz_tex_t* self,
+                               int type, int format);
+texgz_tex_t* texgz_tex_convertcopy(texgz_tex_t* self,
+                                   int type, int format);
+int          texgz_tex_convertF(texgz_tex_t* self,
+                                float min, float max,
+                                int type, int format);
+texgz_tex_t* texgz_tex_convertFcopy(texgz_tex_t* self,
+                                    float min, float max,
+                                    int type, int format);
 int          texgz_tex_flipvertical(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self);
 int          texgz_tex_crop(texgz_tex_t* self, int top, int left, int bottom, int right);
@@ -125,14 +133,15 @@ void         texgz_tex_sampleBicubicRGBA(texgz_tex_t* self,
 void         texgz_tex_getPixel(texgz_tex_t* self,
                                 int x, int y,
                                 unsigned char* pixel);
-float        texgz_tex_getPixelF(texgz_tex_t* self,
-                                 int x, int y);
+void         texgz_tex_getPixelF(texgz_tex_t* self,
+                                 int x, int y,
+                                 float* pixel);
 void         texgz_tex_setPixel(texgz_tex_t* self,
                                 int x, int y,
                                 unsigned char* pixel);
 void         texgz_tex_setPixelF(texgz_tex_t* self,
                                  int x, int y,
-                                 float pixel);
+                                 float* pixel);
 int          texgz_tex_mipmap(texgz_tex_t* self,
                               int miplevels,
                               texgz_tex_t** mipmaps);
