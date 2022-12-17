@@ -76,6 +76,38 @@ save_output(texgz_slic_t* slic, texgz_tex_t* sp,
 	return 0;
 }
 
+static int
+save_gradient(texgz_tex_t* tex, const char* fname)
+{
+	ASSERT(tex);
+	ASSERT(fname);
+
+	texgz_tex_t* out;
+	out = texgz_tex_convertFcopy(tex,
+	                             -1.0f, 1.0f,
+	                             TEXGZ_UNSIGNED_BYTE,
+	                             TEXGZ_RGBA);
+	if(out == NULL)
+	{
+		return 0;
+	}
+
+	if(texgz_png_export(out, fname) == 0)
+	{
+		goto fail_export;
+	}
+
+	texgz_tex_delete(&out);
+
+	// success
+	return 1;
+
+	// failure
+	fail_export:
+		texgz_tex_delete(&out);
+	return 0;
+}
+
 /***********************************************************
 * public                                                   *
 ***********************************************************/
@@ -117,6 +149,47 @@ int main(int argc, char** argv)
 		goto fail_convert_tex;
 	}
 
+	texgz_tex_t* gray = texgz_tex_grayscaleF(tex);
+	if(gray == NULL)
+	{
+		goto fail_gray;
+	}
+
+	texgz_tex_t* gx;
+	gx = texgz_tex_new(gray->width, gray->height,
+	                   gray->stride, gray->vstride,
+	                   gray->type, gray->format,
+	                   NULL);
+	if(gx == NULL)
+	{
+		goto fail_gx;
+	}
+
+	texgz_tex_t* gy;
+	gy = texgz_tex_new(gray->width, gray->height,
+	                   gray->stride, gray->vstride,
+	                   gray->type, gray->format,
+	                   NULL);
+	if(gy == NULL)
+	{
+		goto fail_gy;
+	}
+
+	float sobelx[] =
+	{
+		-0.25f, 0.0f, 0.25f,
+		-0.5f,  0.0f, 0.5f,
+		-0.25f, 0.0f, 0.25f,
+	};
+	float sobely[] =
+	{
+		-0.25f, -0.5f, -0.25f,
+		 0.0f,   0.0f,  0.0f,
+		 0.25f,  0.5f,  0.25f,
+	};
+	texgz_tex_convolveF(gray, gx, 3, 3, sobelx);
+	texgz_tex_convolveF(gray, gy, 3, 3, sobely);
+
 	texgz_slic_t* slic = texgz_slic_new(tex, s, m, n, r);
 	if(slic == NULL)
 	{
@@ -137,10 +210,14 @@ int main(int argc, char** argv)
 	char base[256];
 	char fname_avg[256];
 	char fname_stddev[256];
+	char fname_gx[256];
+	char fname_gy[256];
 	snprintf(base, 256, "%s-%i-%i-%i-%i",
 	         prefix, s, (int) (10.0f*m), n, r);
 	snprintf(fname_avg,    256, "%s-avg.png",    base);
 	snprintf(fname_stddev, 256, "%s-stddev.png", base);
+	snprintf(fname_gx, 256, "%s-gx.png", base);
+	snprintf(fname_gy, 256, "%s-gy.png", base);
 
 	// save avg
 	save_output(slic, slic->sp_avg,
@@ -173,8 +250,13 @@ int main(int argc, char** argv)
 	}
 	save_output(slic, slic->sp_stddev,
 	            0.0f, max, fname_stddev);
+	save_gradient(gx, fname_gx);
+	save_gradient(gy, fname_gy);
 
 	texgz_slic_delete(&slic);
+	texgz_tex_delete(&gy);
+	texgz_tex_delete(&gx);
+	texgz_tex_delete(&gray);
 	texgz_tex_delete(&tex);
 
 	// success
@@ -182,6 +264,12 @@ int main(int argc, char** argv)
 
 	// failure
 	fail_slic:
+		texgz_tex_delete(&gy);
+	fail_gy:
+		texgz_tex_delete(&gx);
+	fail_gx:
+		texgz_tex_delete(&gray);
+	fail_gray:
 	fail_convert_tex:
 		texgz_tex_delete(&tex);
 	return EXIT_FAILURE;
