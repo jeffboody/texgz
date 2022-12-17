@@ -95,6 +95,11 @@ int          texgz_tex_convertF(texgz_tex_t* self,
 texgz_tex_t* texgz_tex_convertFcopy(texgz_tex_t* self,
                                     float min, float max,
                                     int type, int format);
+texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self);
+void         texgz_tex_convolveF(texgz_tex_t* src,
+                                 texgz_tex_t* dst,
+                                 int mw, int mh,
+                                 float* mask);
 int          texgz_tex_flipvertical(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self);
 int          texgz_tex_crop(texgz_tex_t* self, int top, int left, int bottom, int right);
@@ -136,6 +141,9 @@ void         texgz_tex_getPixel(texgz_tex_t* self,
 void         texgz_tex_getPixelF(texgz_tex_t* self,
                                  int x, int y,
                                  float* pixel);
+void         texgz_tex_getClampedPixelF(texgz_tex_t* self,
+                                        int x, int y,
+                                        float* pixel);
 void         texgz_tex_setPixel(texgz_tex_t* self,
                                 int x, int y,
                                 unsigned char* pixel);

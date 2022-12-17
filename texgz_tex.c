@@ -22,6 +22,7 @@
  */
 
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
@@ -569,7 +570,8 @@ static texgz_tex_t* texgz_tex_LAto8800(texgz_tex_t* self)
 	return tex;
 }
 
-static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
+static texgz_tex_t*
+texgz_tex_Fto8888(texgz_tex_t* self, float min, float max)
 {
 	ASSERT(self);
 
@@ -601,9 +603,11 @@ static texgz_tex_t* texgz_tex_Fto8888(texgz_tex_t* self)
 			float*         src = &fpixels[idx];
 			unsigned char* dst = &tex->pixels[4*idx];
 
-			dst[0] = (unsigned char) (255.0f*src[0]);
-			dst[1] = (unsigned char) (255.0f*src[0]);
-			dst[2] = (unsigned char) (255.0f*src[0]);
+			dst[0] = (unsigned char)
+			         cc_clamp(255.0f*(src[0] - min)/(max - min),
+			                  0.0f, 255.0f);
+			dst[1] = dst[0],
+			dst[2] = dst[0],
 			dst[3] = 0xFF;
 		}
 	}
@@ -645,16 +649,16 @@ texgz_tex_FFFFto8888(texgz_tex_t* self, float min, float max)
 			unsigned char* dst = &tex->pixels[idx];
 
 			dst[0] = (unsigned char)
-			         cc_clamp(255.0f*(src[0] + min)/(max - min),
+			         cc_clamp(255.0f*(src[0] - min)/(max - min),
 			                  0.0f, 255.0f);
 			dst[1] = (unsigned char)
-			         cc_clamp(255.0f*(src[1] + min)/(max - min),
+			         cc_clamp(255.0f*(src[1] - min)/(max - min),
 			                  0.0f, 255.0f);
 			dst[2] = (unsigned char)
-			         cc_clamp(255.0f*(src[2] + min)/(max - min),
+			         cc_clamp(255.0f*(src[2] - min)/(max - min),
 			                  0.0f, 255.0f);
 			dst[3] = (unsigned char)
-			         cc_clamp(255.0f*(src[3] + min)/(max - min),
+			         cc_clamp(255.0f*(src[3] - min)/(max - min),
 			                  0.0f, 255.0f);
 		}
 	}
@@ -2676,7 +2680,7 @@ texgz_tex_convertcopy(texgz_tex_t* self, int type,
 	}
 	else if((self->type == TEXGZ_FLOAT) &&
 	        (self->format == TEXGZ_LUMINANCE))
-		tmp = texgz_tex_Fto8888(self);
+		tmp = texgz_tex_Fto8888(self, 0.0f, 1.0f);
 	else if((self->type == TEXGZ_FLOAT) &&
 	        (self->format == TEXGZ_RGBA))
 		tmp = texgz_tex_FFFFto8888(self, 0.0f, 1.0f);
@@ -2768,6 +2772,13 @@ texgz_tex_convertFcopy(texgz_tex_t* self,
 	{
 		return texgz_tex_FFFFto8888(self, min, max);
 	}
+	else if((self->type   == TEXGZ_FLOAT)         &&
+	        (self->format == TEXGZ_LUMINANCE)     &&
+	        (type         == TEXGZ_UNSIGNED_BYTE) &&
+	        (format       == TEXGZ_RGBA))
+	{
+		return texgz_tex_Fto8888(self, min, max);
+	}
 	else if((self->type   == TEXGZ_UNSIGNED_BYTE) &&
 	        (self->format == TEXGZ_RGBA)          &&
 	        (type         == TEXGZ_FLOAT)         &&
@@ -2780,6 +2791,104 @@ texgz_tex_convertFcopy(texgz_tex_t* self,
 		LOGE("invalid type=0x%X:0x%X, format=0x%X:0x%X",
 		     self->type, type, self->format, format);
 		return NULL;
+	}
+}
+
+texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self)
+{
+	ASSERT(self);
+	ASSERT(self->type == TEXGZ_FLOAT);
+
+	// channels
+	int n;
+	if(self->format == TEXGZ_RGBA)
+	{
+		n = 4;
+	}
+	else if(self->format == TEXGZ_RGB)
+	{
+		n = 3;
+	}
+	else
+	{
+		LOGE("invalid format=0x%X", self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    TEXGZ_FLOAT, TEXGZ_LUMINANCE,
+	                    NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	float src[4] = { 0 };
+	float dst;
+	int   x;
+	int   y;
+	int   i;
+	for(y = 0; y < self->height; ++y)
+	{
+		for(x = 0; x < self->width; ++x)
+		{
+			dst = 0.0f;
+			texgz_tex_getPixelF(self, x, y, src);
+			for(i = 0; i < n; ++i)
+			{
+				dst += src[i];
+			}
+			dst /= n;
+
+			texgz_tex_setPixelF(tex, x, y, &dst);
+		}
+	}
+
+	return tex;
+}
+
+void
+texgz_tex_convolveF(texgz_tex_t* src,
+                    texgz_tex_t* dst,
+                    int mw, int mh, float* mask)
+{
+	ASSERT(src);
+	ASSERT(dst);
+	ASSERT(mask);
+	ASSERT(src->width  == dst->width);
+	ASSERT(src->height == dst->height);
+
+	int   w   = src->width;
+	int   h   = src->height;
+	int   mw2 = mw/2;
+	int   mh2 = mh/2;
+	float f   = 0.0f;
+
+	int i;
+	int j;
+	float pixel;
+	for(i = 0; i < h ; ++i)
+	{
+		for(j = 0; j < w; ++j)
+		{
+			int m;
+			int n;
+			f = 0.0f;
+			for(m = -mh2; m <= mh2; ++m)
+			{
+				for(n = -mw2; n <= mw2; ++n)
+				{
+					int mm = m + mh2;
+					int nn = n + mw2;
+					texgz_tex_getClampedPixelF(src, j + n, i + m, &pixel);
+					f += mask[mw*mm + nn]*pixel;
+				}
+			}
+
+			texgz_tex_setPixelF(dst, j, i, &f);
+		}
 	}
 }
 
@@ -3415,6 +3524,49 @@ void texgz_tex_getPixelF(texgz_tex_t* self,
 	ASSERT(self->type == TEXGZ_FLOAT);
 	ASSERT((self->format == TEXGZ_LUMINANCE) ||
 	       (self->format == TEXGZ_RGBA));
+
+	int    idx;
+	float* pixels = (float*) self->pixels;
+	if(self->format == TEXGZ_RGBA)
+	{
+		idx = 4*(y*self->stride + x);
+		pixel[0] = pixels[idx];
+		pixel[1] = pixels[idx + 1];
+		pixel[2] = pixels[idx + 2];
+		pixel[3] = pixels[idx + 3];
+	}
+	else
+	{
+		idx = y*self->stride + x;
+		pixel[0] = pixels[idx];
+	}
+}
+
+void texgz_tex_getClampedPixelF(texgz_tex_t* self,
+                                int x, int y, float* pixel)
+{
+	ASSERT(self);
+	ASSERT(self->type == TEXGZ_FLOAT);
+	ASSERT((self->format == TEXGZ_LUMINANCE) ||
+	       (self->format == TEXGZ_RGBA));
+
+	if(x < 0)
+	{
+		x = 0;
+	}
+	else if(x >= self->width)
+	{
+		x = self->width;
+	}
+
+	if(y < 0)
+	{
+		y = 0;
+	}
+	else if(y >= self->height)
+	{
+		y = self->height;
+	}
 
 	int    idx;
 	float* pixels = (float*) self->pixels;
