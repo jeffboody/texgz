@@ -77,14 +77,14 @@ save_output(texgz_slic_t* slic, texgz_tex_t* sp,
 }
 
 static int
-save_gradient(texgz_tex_t* tex, const char* fname)
+save_image(texgz_tex_t* tex, float min, float max,
+           const char* fname)
 {
 	ASSERT(tex);
 	ASSERT(fname);
 
 	texgz_tex_t* out;
-	out = texgz_tex_convertFcopy(tex,
-	                             -1.0f, 1.0f,
+	out = texgz_tex_convertFcopy(tex, min, max,
 	                             TEXGZ_UNSIGNED_BYTE,
 	                             TEXGZ_RGBA);
 	if(out == NULL)
@@ -114,25 +114,27 @@ save_gradient(texgz_tex_t* tex, const char* fname)
 
 int main(int argc, char** argv)
 {
-	if(argc != 7)
+	if(argc != 8)
 	{
-		LOGE("usage: %s s m n r steps prefix",
+		LOGE("usage: %s s m sdx n r steps prefix",
 		     argv[0]);
 		LOGE("s: superpixel size (sxs)");
 		LOGE("m: compactness control");
+		LOGE("sdx: stddev threshold");
 		LOGE("n: gradient neighborhood (nxn)");
 		LOGE("r: recenter clusters");
-		LOGE("N: maximum step count");
+		LOGE("steps: maximum step count");
 		return EXIT_FAILURE;
 	}
 
-	int   s = (int) strtol(argv[1], NULL, 0);
-	float m = strtof(argv[2], NULL);
-	int   n = (int) strtol(argv[3], NULL, 0);
-	int   r = (int) strtol(argv[4], NULL, 0);
-	int   N = (int) strtol(argv[5], NULL, 0);
+	int   s     = (int) strtol(argv[1], NULL, 0);
+	float m     = strtof(argv[2], NULL);
+	float sdx   = strtof(argv[3], NULL);
+	int   n     = (int) strtol(argv[4], NULL, 0);
+	int   r     = (int) strtol(argv[5], NULL, 0);
+	int   steps = (int) strtol(argv[6], NULL, 0);
 
-	const char* prefix = argv[6];
+	const char* prefix = argv[7];
 
 	char input[256];
 	snprintf(input, 256, "%s.png", prefix);
@@ -190,18 +192,18 @@ int main(int argc, char** argv)
 	texgz_tex_convolveF(gray, gx, 3, 3, sobelx);
 	texgz_tex_convolveF(gray, gy, 3, 3, sobely);
 
-	texgz_slic_t* slic = texgz_slic_new(tex, s, m, n, r);
+	texgz_slic_t* slic = texgz_slic_new(tex, s, m, sdx, n, r);
 	if(slic == NULL)
 	{
 		goto fail_slic;
 	}
 
 	// solve slic superpixels
-	// TODO - loop for N steps or until E <= thresh
-	int idx;
-	for(idx = 0; idx < N; ++idx)
+	// TODO - loop for steps or until E <= thresh
+	int step;
+	for(step = 0; step < steps; ++step)
 	{
-		texgz_slic_step(slic);
+		texgz_slic_step(slic, step);
 	}
 
 	// TODO - enforce connectivity
@@ -210,12 +212,15 @@ int main(int argc, char** argv)
 	char base[256];
 	char fname_avg[256];
 	char fname_stddev[256];
+	char fname_outlier[256];
 	char fname_gx[256];
 	char fname_gy[256];
-	snprintf(base, 256, "%s-%i-%i-%i-%i",
-	         prefix, s, (int) (10.0f*m), n, r);
+	snprintf(base, 256, "%s-%i-%i-%i-%i-%i",
+	         prefix, s, (int) (10.0f*m), (int) (10.0f*sdx),
+	         n, r);
 	snprintf(fname_avg,    256, "%s-avg.png",    base);
 	snprintf(fname_stddev, 256, "%s-stddev.png", base);
+	snprintf(fname_outlier, 256, "%s-outlier.png", base);
 	snprintf(fname_gx, 256, "%s-gx.png", base);
 	snprintf(fname_gy, 256, "%s-gy.png", base);
 
@@ -250,8 +255,9 @@ int main(int argc, char** argv)
 	}
 	save_output(slic, slic->sp_stddev,
 	            0.0f, max, fname_stddev);
-	save_gradient(gx, fname_gx);
-	save_gradient(gy, fname_gy);
+	save_image(gx, -0.25f, 0.25f, fname_gx);
+	save_image(gy, -0.25f, 0.25f, fname_gy);
+	save_image(slic->sp_outlier, 0.0f, 1.0f, fname_outlier);
 
 	texgz_slic_delete(&slic);
 	texgz_tex_delete(&gy);

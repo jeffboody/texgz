@@ -52,11 +52,12 @@ typedef struct
 
 typedef struct
 {
-	int   s;  // superpixel size
-	float m;  // compactness control
-	int   n;  // gradient neighborhood
-	int   kw; // cluster count K = kw*kh
-	int   kh; // where kw,kh = width/s,height/s
+	int   s;   // superpixel size
+	float m;   // compactness control
+	float sdx; // stddev threshold
+	int   n;   // gradient neighborhood
+	int   kw;  // cluster count K = kw*kh
+	int   kh;  // where kw,kh = width/s,height/s
 	int   recenter;
 
 	// input reference
@@ -67,15 +68,17 @@ typedef struct
 	texgz_slicSample_t*  samples;
 
 	// superpixel features
-	texgz_tex_t* sp_avg;
-	texgz_tex_t* sp_stddev;
+	texgz_tex_t* sp_avg;     // kwxkh
+	texgz_tex_t* sp_stddev;  // kwxky
+	texgz_tex_t* sp_outlier; // wxh
 } texgz_slic_t;
 
 texgz_slic_t* texgz_slic_new(texgz_tex_t* input,
-                             int s, float m, int n,
-                             int recenter);
+                             int s, float m, float sdx,
+                             int n, int recenter);
 void          texgz_slic_delete(texgz_slic_t** _self);
-float         texgz_slic_step(texgz_slic_t* self);
+float         texgz_slic_step(texgz_slic_t* self,
+                              int step);
 texgz_tex_t*  texgz_slic_output(texgz_slic_t* self,
                                 texgz_tex_t* sp);
 
