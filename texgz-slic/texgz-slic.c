@@ -145,6 +145,12 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
+	if(texgz_tex_convert(tex, TEXGZ_UNSIGNED_BYTE,
+	                     TEXGZ_RGBA) == 0)
+	{
+		goto fail_convert_tex;
+	}
+
 	if(texgz_tex_convertF(tex, 0.0f, 1.0f,
 	                      TEXGZ_FLOAT, TEXGZ_RGBA) == 0)
 	{
