@@ -47,6 +47,7 @@
 #define TEXGZ_LUMINANCE       0x1909
 #define TEXGZ_LUMINANCE_ALPHA 0x190A
 #define TEXGZ_RG00            0x9999
+#define TEXGZ_LABL            0x999A
 
 typedef struct
 {

@@ -876,6 +876,70 @@ static texgz_tex_t* texgz_tex_8888toL(texgz_tex_t* self)
 	return tex;
 }
 
+static texgz_tex_t* texgz_tex_8888toLABL(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    TEXGZ_UNSIGNED_BYTE,
+	                    TEXGZ_LABL, NULL);
+	if(tex == NULL)
+		return NULL;
+
+	// See rgb2lab
+	// https://github.com/antimatter15/rgb-lab/blob/master/color.js
+	float r;
+	float g;
+	float b;
+	float yy;
+	float labl;
+	int x, y, idx;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = y*tex->stride + x;
+			unsigned char* src = &self->pixels[4*idx];
+			unsigned char* dst = &tex->pixels[idx];
+
+			r = ((float) src[0])/255.0f;
+			g = ((float) src[1])/255.0f;
+			b = ((float) src[2])/255.0f;
+
+			r = (r > 0.04045f) ? powf((r + 0.055f)/1.055f, 2.4f) : r/12.92f;
+			g = (g > 0.04045f) ? powf((g + 0.055f)/1.055f, 2.4f) : g/12.92f;
+			b = (b > 0.04045f) ? powf((b + 0.055f)/1.055f, 2.4f) : b/12.92f;
+
+			yy = (r*0.2126f + g*0.7152f + b*0.0722f)/1.00000f;
+			yy = (yy > 0.008856f) ? powf(yy, 0.333333f) : (7.787f*yy) + 16.0f/116.0f;
+
+			labl = (255.0f/100.0f)*(116.0f*yy - 16.0f);
+
+			if(labl > 255.0f)
+			{
+				labl = 255.0f;
+			}
+			else if(labl < 0.0f)
+			{
+				labl = 0.0f;
+			}
+			dst[0] = (unsigned char) labl;
+		}
+	}
+
+	return tex;
+}
+
 static texgz_tex_t* texgz_tex_8888toA(texgz_tex_t* self)
 {
 	ASSERT(self);
@@ -1828,6 +1892,9 @@ texgz_tex_new(int width, int height,
 	        (format == TEXGZ_LUMINANCE))
 		; // ok
 	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_LABL))
+		; // ok
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
 	        (format == TEXGZ_ALPHA))
 		; // ok
 	else if((type == TEXGZ_SHORT) &&
@@ -2573,23 +2640,17 @@ int texgz_tex_convert(texgz_tex_t* self, int type,
 	if((type == self->type) && (format == self->format))
 		return 1;
 
-	// convert L-to-A
-	if((type         == TEXGZ_UNSIGNED_BYTE) &&
-	   (format       == TEXGZ_ALPHA)         &&
+	// convert L,A,LABL
+	if((type == TEXGZ_UNSIGNED_BYTE)         &&
 	   (self->type   == TEXGZ_UNSIGNED_BYTE) &&
-	   (self->format == TEXGZ_LUMINANCE))
+	   ((format == TEXGZ_ALPHA)     ||
+	    (format == TEXGZ_LUMINANCE) ||
+	    (format == TEXGZ_LABL)) &&
+	   ((self->format == TEXGZ_ALPHA)     ||
+	    (self->format == TEXGZ_LUMINANCE) ||
+	    (self->format == TEXGZ_LABL)))
 	{
-		self->format = TEXGZ_ALPHA;
-		return 1;
-	}
-
-	// convert A-to-L
-	if((type         == TEXGZ_UNSIGNED_BYTE) &&
-	   (format       == TEXGZ_LUMINANCE)     &&
-	   (self->type   == TEXGZ_UNSIGNED_BYTE) &&
-	   (self->format == TEXGZ_ALPHA))
-	{
-		self->format = TEXGZ_LUMINANCE;
+		self->format = format;
 		return 1;
 	}
 
@@ -2718,6 +2779,9 @@ texgz_tex_convertcopy(texgz_tex_t* self, int type,
 	else if((type == TEXGZ_UNSIGNED_BYTE) &&
 	        (format == TEXGZ_LUMINANCE))
 		tex = texgz_tex_8888toL(tmp);
+	else if((type == TEXGZ_UNSIGNED_BYTE) &&
+	        (format == TEXGZ_LABL))
+		tex = texgz_tex_8888toLABL(tmp);
 	else if((type == TEXGZ_UNSIGNED_BYTE) &&
 	        (format == TEXGZ_ALPHA))
 		tex = texgz_tex_8888toA(tmp);
@@ -3095,8 +3159,9 @@ texgz_tex_t* texgz_tex_outline(texgz_tex_t* self, int size)
 	}
 
 	// validate the input tex
-	if(((self->format == TEXGZ_ALPHA) ||
-	    (self->format == TEXGZ_LUMINANCE)) &&
+	if(((self->format == TEXGZ_ALPHA)     ||
+	    (self->format == TEXGZ_LUMINANCE) ||
+	    (self->format == TEXGZ_LABL)) &&
 	   (self->type == TEXGZ_UNSIGNED_BYTE))
 	{
 		// OK
@@ -3709,6 +3774,11 @@ int texgz_tex_bpp(texgz_tex_t* self)
 	}
 	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
 	        (self->format == TEXGZ_LUMINANCE))
+	{
+		bpp = 1;
+	}
+	else if((self->type == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_LABL))
 	{
 		bpp = 1;
 	}
