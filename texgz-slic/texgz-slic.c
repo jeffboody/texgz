@@ -217,6 +217,7 @@ int main(int argc, char** argv)
 	// output names
 	char base[256];
 	char fname_avg[256];
+	char fname_slic[256];
 	char fname_stddev[256];
 	char fname_outlier[256];
 	char fname_gx[256];
@@ -225,6 +226,7 @@ int main(int argc, char** argv)
 	         prefix, s, (int) (10.0f*m), (int) (10.0f*sdx),
 	         n, r);
 	snprintf(fname_avg,    256, "%s-avg.png",    base);
+	snprintf(fname_slic,    256, "%s-slic.png",    base);
 	snprintf(fname_stddev, 256, "%s-stddev.png", base);
 	snprintf(fname_outlier, 256, "%s-outlier.png", base);
 	snprintf(fname_gx, 256, "%s-gx.png", base);
@@ -264,6 +266,7 @@ int main(int argc, char** argv)
 	save_image(gx, -0.25f, 0.25f, fname_gx);
 	save_image(gy, -0.25f, 0.25f, fname_gy);
 	save_image(slic->sp_outlier, 0.0f, 1.0f, fname_outlier);
+	save_image(slic->sp_avg, 0.0f, 1.0f, fname_slic);
 
 	texgz_slic_delete(&slic);
 	texgz_tex_delete(&gy);

@@ -54,6 +54,20 @@ algorithm which are the superpixel clusters.
 3. Bottom-Left: SLIC with m=1.0, sdx=1.0, r=0
 4. Bottom-Right: SLIC with m=1.0, sdx=2.0, r=0
 
+The following image shows the main output of the SLIC
+algorithm which are the compressed superpixel clusters
+when compared with an 8x8 averaging filter and an 8x8
+inlier filter (see texgz-inlier).
+
+![Compare Superpixels](data/tomato-256-compare4.png?raw=true "Compare Superpixels")
+
+1. Top-Left: SLIC with m=10.0, sdx=0 (disabled), r=1 (e.g. "defaults")
+2. Top-Center: Average of pixels with s=8
+3. Top-Right: Inlier of pixels with s=8, sdx=1.0
+4. Bottom-Left: SLIC with m=1.0, sdx=0.0, r=0
+5. Bottom-Center: SLIC with m=1.0, sdx=1.0, r=0
+6. Bottom-Right: SLIC with m=1.0, sdx=2.0, r=0
+
 The following image shows the outliers identified by the
 stddev threshold (sdx). Note that the red outlier pixels
 lie predominately on the superpixel edge boundaries.
