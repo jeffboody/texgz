@@ -212,7 +212,7 @@ texgz_tex_t* texgz_tex_inlier(texgz_tex_t* tex,
 			pixel[0] = (unsigned char) cc_clamp(255.0f*in[0], 0.0f, 255.0f);
 			pixel[1] = (unsigned char) cc_clamp(255.0f*in[1], 0.0f, 255.0f);
 			pixel[2] = (unsigned char) cc_clamp(255.0f*in[2], 0.0f, 255.0f);
-			pixel[3] = 255;
+			pixel[3] = (unsigned char) cc_clamp(255.0f*in[3], 0.0f, 255.0f);
 
 			texgz_tex_setPixel(tex_in, x, y, pixel);
 		}
