@@ -2913,6 +2913,128 @@ texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self)
 	return tex;
 }
 
+int texgz_tex_RGB2LABF(texgz_tex_t* self,
+                       texgz_tex_t** _labl,
+                       texgz_tex_t** _laba,
+                       texgz_tex_t** _labb)
+{
+	ASSERT(self);
+	ASSERT(_labl);
+	ASSERT(_laba);
+	ASSERT(_labb);
+
+	// check for supported type/format
+	int channels = 0;
+	if(self->type == TEXGZ_UNSIGNED_BYTE)
+	{
+		if(self->format == TEXGZ_RGBA)
+		{
+			channels = 4;
+		}
+		else if(self->format == TEXGZ_RGB)
+		{
+			channels = 3;
+		}
+	}
+
+	if(channels == 0)
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+		return 0;
+	}
+
+	texgz_tex_t* labl;
+	labl = texgz_tex_new(self->width, self->height,
+	                     self->stride, self->vstride,
+	                     TEXGZ_FLOAT, TEXGZ_LUMINANCE,
+	                     NULL);
+	if(labl == NULL)
+	{
+		return 0;
+	}
+
+	texgz_tex_t* laba;
+	laba = texgz_tex_new(self->width, self->height,
+	                     self->stride, self->vstride,
+	                     TEXGZ_FLOAT, TEXGZ_LUMINANCE,
+	                     NULL);
+	if(laba == NULL)
+	{
+		goto fail_laba;
+	}
+
+	texgz_tex_t* labb;
+	labb = texgz_tex_new(self->width, self->height,
+	                     self->stride, self->vstride,
+	                     TEXGZ_FLOAT, TEXGZ_LUMINANCE,
+	                     NULL);
+	if(labb == NULL)
+	{
+		goto fail_labb;
+	}
+
+	// See rgb2lab
+	// https://github.com/antimatter15/rgb-lab/blob/master/color.js
+	float r;
+	float g;
+	float b;
+	float xx;
+	float yy;
+	float zz;
+	float pixel_labl[4] = { 0 };
+	float pixel_laba[4] = { 0 };
+	float pixel_labb[4] = { 0 };
+	int x, y, idx;
+	unsigned char* pixel_src;
+	for(y = 0; y < self->height; ++y)
+	{
+		for(x = 0; x < self->width; ++x)
+		{
+			idx       = y*self->stride + x;
+			pixel_src = &self->pixels[channels*idx];
+
+			r = ((float) pixel_src[0])/255.0f;
+			g = ((float) pixel_src[1])/255.0f;
+			b = ((float) pixel_src[2])/255.0f;
+
+			r = (r > 0.04045f) ? powf((r + 0.055f)/1.055f, 2.4f) : r/12.92f;
+			g = (g > 0.04045f) ? powf((g + 0.055f)/1.055f, 2.4f) : g/12.92f;
+			b = (b > 0.04045f) ? powf((b + 0.055f)/1.055f, 2.4f) : b/12.92f;
+
+			xx = (r*0.4124f + g*0.3576f + b*0.1805f)/0.95047f;
+			yy = (r*0.2126f + g*0.7152f + b*0.0722f)/1.00000f;
+			zz = (r*0.0193f + g*0.1192f + b*0.9505f)/1.08883f;
+
+			xx = (xx > 0.008856f) ? powf(xx, 0.333333f) : (7.787f*xx) + 16.0f/116.0f;
+			yy = (yy > 0.008856f) ? powf(yy, 0.333333f) : (7.787f*yy) + 16.0f/116.0f;
+			zz = (zz > 0.008856f) ? powf(zz, 0.333333f) : (7.787f*zz) + 16.0f/116.0f;
+
+			pixel_labl[0] = 116.0f*yy - 16.0f;
+			pixel_laba[0] = 500.0f*(xx - yy);
+			pixel_labb[0] = 200.0f*(yy - zz);
+
+			texgz_tex_setPixelF(labl, x, y, pixel_labl);
+			texgz_tex_setPixelF(laba, x, y, pixel_laba);
+			texgz_tex_setPixelF(labb, x, y, pixel_labb);
+		}
+	}
+
+	*_labl = labl;
+	*_laba = laba;
+	*_labb = labb;
+
+	// success
+	return 1;
+
+	// failure
+	fail_labb:
+		texgz_tex_delete(&laba);
+	fail_laba:
+		texgz_tex_delete(&labl);
+	return 0;
+}
+
 texgz_tex_t*
 texgz_tex_channelF(texgz_tex_t* self, int channel,
                    float min, float max)

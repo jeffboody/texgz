@@ -97,6 +97,10 @@ texgz_tex_t* texgz_tex_convertFcopy(texgz_tex_t* self,
                                     float min, float max,
                                     int type, int format);
 texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self);
+int          texgz_tex_RGB2LABF(texgz_tex_t* self,
+                                texgz_tex_t** _labl,
+                                texgz_tex_t** _laba,
+                                texgz_tex_t** _labb);
 texgz_tex_t* texgz_tex_channelF(texgz_tex_t* self,
                                 int channel,
                                 float min, float max);
