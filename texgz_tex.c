@@ -2913,6 +2913,78 @@ texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self)
 	return tex;
 }
 
+texgz_tex_t*
+texgz_tex_channelF(texgz_tex_t* self, int channel,
+                   float min, float max)
+{
+	ASSERT(self);
+
+	int channels = texgz_tex_channels(self);
+	if((channels == 0) || (channel >= channels))
+	{
+		LOGE("invalid format=0x%X, channel=%i",
+		     self->format, channel);
+		return NULL;
+	}
+
+	// check type
+	if((self->type == TEXGZ_FLOAT) ||
+	   (self->type == TEXGZ_UNSIGNED_BYTE))
+	{
+		// ok
+	}
+	else
+	{
+		LOGE("invalid type=0x%X", self->type);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    TEXGZ_FLOAT, TEXGZ_LUMINANCE,
+	                    NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	// copy channel
+	int x;
+	int y;
+	unsigned char srcu[4] = { 0 };
+	float         srcf[4] = { 0 };
+	float         dstf[4] = { 0 };
+	if(self->type == TEXGZ_FLOAT)
+	{
+		for(y = 0; y < self->height; ++y)
+		{
+			for(x = 0; x < self->width; ++x)
+			{
+				// ignore min/max for floats
+				texgz_tex_getPixelF(self, x, y, srcf);
+				dstf[0] = srcf[channel];
+				texgz_tex_setPixelF(tex, x, y, dstf);
+			}
+		}
+	}
+	else
+	{
+		for(y = 0; y < self->height; ++y)
+		{
+			for(x = 0; x < self->width; ++x)
+			{
+				texgz_tex_getPixel(self, x, y, srcu);
+				srcf[0] = (float) srcu[channel];
+				dstf[0] = (max - min)*srcf[0]/255.0f + min;
+				texgz_tex_setPixelF(tex, x, y, dstf);
+			}
+		}
+	}
+
+	return tex;
+}
+
 void
 texgz_tex_convolveF(texgz_tex_t* src,
                     texgz_tex_t* dst,
@@ -3749,6 +3821,37 @@ int texgz_tex_mipmap(texgz_tex_t* self, int miplevels,
 			texgz_tex_delete(&mipmaps[k]);
 		}
 	}
+	return 0;
+}
+
+int texgz_tex_channels(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	if((self->format == TEXGZ_RGBA) ||
+	   (self->format == TEXGZ_BGRA))
+	{
+		return 4;
+	}
+	else if(self->format == TEXGZ_RGB)
+	{
+		return 3;
+	}
+	else if(self->format == TEXGZ_LUMINANCE_ALPHA)
+	{
+		return 2;
+	}
+	else if((self->format == TEXGZ_ALPHA) ||
+	        (self->format == TEXGZ_LUMINANCE))
+	{
+		return 1;
+	}
+	else
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+	}
+
 	return 0;
 }
 

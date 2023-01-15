@@ -97,6 +97,9 @@ texgz_tex_t* texgz_tex_convertFcopy(texgz_tex_t* self,
                                     float min, float max,
                                     int type, int format);
 texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self);
+texgz_tex_t* texgz_tex_channelF(texgz_tex_t* self,
+                                int channel,
+                                float min, float max);
 void         texgz_tex_convolveF(texgz_tex_t* src,
                                  texgz_tex_t* dst,
                                  int mw, int mh,
@@ -154,6 +157,7 @@ void         texgz_tex_setPixelF(texgz_tex_t* self,
 int          texgz_tex_mipmap(texgz_tex_t* self,
                               int miplevels,
                               texgz_tex_t** mipmaps);
+int          texgz_tex_channels(texgz_tex_t* self);
 int          texgz_tex_bpp(texgz_tex_t* self);
 int          texgz_tex_size(texgz_tex_t* self);
 
