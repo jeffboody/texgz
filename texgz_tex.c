@@ -904,9 +904,9 @@ static texgz_tex_t* texgz_tex_8888toLABL(texgz_tex_t* self)
 	float yy;
 	float labl;
 	int x, y, idx;
-	for(y = 0; y < tex->vstride; ++y)
+	for(y = 0; y < tex->height; ++y)
 	{
-		for(x = 0; x < tex->stride; ++x)
+		for(x = 0; x < tex->width; ++x)
 		{
 			idx = y*tex->stride + x;
 			unsigned char* src = &self->pixels[4*idx];
