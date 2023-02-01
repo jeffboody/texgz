@@ -3453,6 +3453,13 @@ int texgz_tex_blit(texgz_tex_t* src, texgz_tex_t* dst,
 	return 1;
 }
 
+void texgz_tex_clear(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	memset(self->pixels, 0, MEMSIZEPTR(self->pixels));
+}
+
 void texgz_tex_fill(texgz_tex_t* self,
                     int top, int left,
                     int width, int height,
