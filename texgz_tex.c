@@ -616,6 +616,48 @@ texgz_tex_Fto8888(texgz_tex_t* self, float min, float max)
 }
 
 static texgz_tex_t*
+texgz_tex_Fto8(texgz_tex_t* self, float min, float max)
+{
+	ASSERT(self);
+
+	if((self->type != TEXGZ_FLOAT) ||
+	   (self->format != TEXGZ_LUMINANCE))
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_UNSIGNED_BYTE, TEXGZ_LUMINANCE,
+                        NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	int x, y, idx;
+	float* fpixels = (float*) self->pixels;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = y*tex->stride + x;
+			float*         src = &fpixels[idx];
+			unsigned char* dst = &tex->pixels[idx];
+
+			dst[0] = (unsigned char)
+			         cc_clamp(255.0f*(src[0] - min)/(max - min),
+			                  0.0f, 255.0f);
+		}
+	}
+
+	return tex;
+}
+
+static texgz_tex_t*
 texgz_tex_FFFFto8888(texgz_tex_t* self, float min, float max)
 {
 	ASSERT(self);
@@ -1088,6 +1130,45 @@ texgz_tex_8888toFFFF(texgz_tex_t* self,
 			dst[1] = (max - min)*((float) src[1])/255.0f - min;
 			dst[2] = (max - min)*((float) src[2])/255.0f - min;
 			dst[3] = (max - min)*((float) src[3])/255.0f - min;
+		}
+	}
+
+	return tex;
+}
+
+static texgz_tex_t*
+texgz_tex_8toF(texgz_tex_t* self,
+               float min, float max)
+{
+	ASSERT(self);
+
+	if((self->type != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_LUMINANCE))
+	{
+		LOGE("invalid type=0x%X, format=0x%X",
+		     self->type, self->format);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+                        self->stride, self->vstride,
+                        TEXGZ_FLOAT, TEXGZ_LUMINANCE,
+                        NULL);
+	if(tex == NULL)
+		return NULL;
+
+	int x, y, idx;
+	float* fpixels = (float*) tex->pixels;
+	for(y = 0; y < tex->vstride; ++y)
+	{
+		for(x = 0; x < tex->stride; ++x)
+		{
+			idx = y*tex->stride + x;
+			unsigned char* src = &self->pixels[idx];
+			float*         dst = &fpixels[idx];
+
+			dst[0] = (max - min)*((float) src[0])/255.0f - min;
 		}
 	}
 
@@ -2843,6 +2924,20 @@ texgz_tex_convertFcopy(texgz_tex_t* self,
 	{
 		return texgz_tex_Fto8888(self, min, max);
 	}
+	else if((self->type   == TEXGZ_FLOAT)         &&
+	        (self->format == TEXGZ_LUMINANCE)     &&
+	        (type         == TEXGZ_UNSIGNED_BYTE) &&
+	        (format       == TEXGZ_LUMINANCE))
+	{
+		return texgz_tex_Fto8(self, min, max);
+	}
+	else if((self->type   == TEXGZ_UNSIGNED_BYTE) &&
+	        (self->format == TEXGZ_LUMINANCE)     &&
+	        (type         == TEXGZ_FLOAT)         &&
+	        (format       == TEXGZ_LUMINANCE))
+	{
+		return texgz_tex_8toF(self, min, max);
+	}
 	else if((self->type   == TEXGZ_UNSIGNED_BYTE) &&
 	        (self->format == TEXGZ_RGBA)          &&
 	        (type         == TEXGZ_FLOAT)         &&
@@ -3117,6 +3212,10 @@ texgz_tex_convolveF(texgz_tex_t* src,
 	ASSERT(mask);
 	ASSERT(src->width  == dst->width);
 	ASSERT(src->height == dst->height);
+	ASSERT(src->type == TEXGZ_FLOAT);
+	ASSERT(src->format == TEXGZ_LUMINANCE);
+	ASSERT(dst->type == TEXGZ_FLOAT);
+	ASSERT(dst->format == TEXGZ_LUMINANCE);
 
 	int   w   = src->width;
 	int   h   = src->height;
