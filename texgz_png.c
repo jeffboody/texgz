@@ -249,13 +249,14 @@ texgz_png_importd(size_t size, const void* data)
 {
 	ASSERT(data);
 
+	unsigned err;
 	unsigned w = 0;
 	unsigned h = 0;
 	LodePNGState state = { 0 };
-	if(lodepng_inspect(&w, &h, &state,
-	                   data, size) != 0)
+	err = lodepng_inspect(&w, &h, &state, data, size);
+	if(err)
 	{
-		LOGE("lodepng_inspect failed");
+		LOGE("invalid %s", lodepng_error_text(err));
 		return NULL;
 	}
 
@@ -280,7 +281,6 @@ texgz_png_importd(size_t size, const void* data)
 	}
 
 	unsigned char* img = NULL;
-	unsigned       err;
 	err = lodepng_decode_memory(&img, &w, &h, data,
 	                            size, colortype, 8);
 	if(err)
