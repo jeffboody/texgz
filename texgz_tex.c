@@ -3921,7 +3921,7 @@ void texgz_tex_getClampedPixelF(texgz_tex_t* self,
 	}
 	else if(x >= self->width)
 	{
-		x = self->width;
+		x = self->width - 1;
 	}
 
 	if(y < 0)
@@ -3930,7 +3930,7 @@ void texgz_tex_getClampedPixelF(texgz_tex_t* self,
 	}
 	else if(y >= self->height)
 	{
-		y = self->height;
+		y = self->height - 1;
 	}
 
 	int    idx;
