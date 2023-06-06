@@ -195,8 +195,8 @@ int main(int argc, char** argv)
 		 0.0f,   0.0f,  0.0f,
 		 0.25f,  0.5f,  0.25f,
 	};
-	texgz_tex_convolveF(gray, gx, 3, 3, sobelx);
-	texgz_tex_convolveF(gray, gy, 3, 3, sobely);
+	texgz_tex_convolveF(gray, gx, 3, 3, 1, 1, sobelx);
+	texgz_tex_convolveF(gray, gy, 3, 3, 1, 1, sobely);
 
 	texgz_slic_t* slic = texgz_slic_new(tex, s, m, sdx, n, r);
 	if(slic == NULL)

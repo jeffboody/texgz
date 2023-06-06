@@ -3203,48 +3203,82 @@ texgz_tex_channelF(texgz_tex_t* self, int channel,
 }
 
 void
-texgz_tex_convolveF(texgz_tex_t* src,
-                    texgz_tex_t* dst,
-                    int mw, int mh, float* mask)
+texgz_tex_convolveF(texgz_tex_t* src, texgz_tex_t* dst,
+                    int mw, int mh,
+                    int stride, int vstride,
+                    float* mask)
 {
 	ASSERT(src);
 	ASSERT(dst);
 	ASSERT(mask);
-	ASSERT(src->width  == dst->width);
-	ASSERT(src->height == dst->height);
+	ASSERT(src->width  == (stride*dst->width));
+	ASSERT(src->height == (vstride*dst->height));
 	ASSERT(src->type == TEXGZ_FLOAT);
-	ASSERT(src->format == TEXGZ_LUMINANCE);
 	ASSERT(dst->type == TEXGZ_FLOAT);
-	ASSERT(dst->format == TEXGZ_LUMINANCE);
+	ASSERT(texgz_tex_channels(src) ==
+	       texgz_tex_channels(dst));
 
-	int   w   = src->width;
-	int   h   = src->height;
-	int   mw2 = mw/2;
-	int   mh2 = mh/2;
-	float f   = 0.0f;
+	// compute center offset
+	// examples:
+	// 1) Sobel Edge: stride=1, mw=3
+	//    +---+---+---+
+	//    | 0 | 1 | 2 |
+	//    +---+---+---+
+	//    |   | C |   |
+	//    +---+---+---+
+	//
+	// 2) Box Downsample: stride=2, mw=2
+	//    +---+---+
+	//    | 0 | 1 |
+	//    +---+---+
+	//    | C |   |
+	//    +---+---+
+	//
+	// 3) Lanczos3 Downsample: stride=2, mw=12
+	//    +---+---+---+---+---+---+---+---+---+---+---+---+
+	//    | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | A | B |
+	//    +---+---+---+---+---+---+---+---+---+---+---+---+
+	//    |   |   |   |   |   | C |   |   |   |   |   |   |
+	//    +---+---+---+---+---+---+---+---+---+---+---+---+
+	int cm = (mh - vstride)/2;
+	int cn = (mw - stride)/2;
 
 	int i;
 	int j;
-	float pixel;
-	for(i = 0; i < h ; ++i)
+	int c;
+	int m;
+	int n;
+	int w        = src->width;
+	int h        = src->height;
+	int channels = texgz_tex_channels(src);
+	float pixel[4];
+	float f[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	for(i = 0; i < h; i += vstride)
 	{
-		for(j = 0; j < w; ++j)
+		for(j = 0; j < w; j += stride)
 		{
-			int m;
-			int n;
-			f = 0.0f;
-			for(m = -mh2; m <= mh2; ++m)
+			for(c = 0; c < channels; ++c)
 			{
-				for(n = -mw2; n <= mw2; ++n)
+				f[c] = 0.0f;
+			}
+
+			// convolve
+			for(m = 0; m < mh; ++m)
+			{
+				for(n = 0; n < mw; ++n)
 				{
-					int mm = m + mh2;
-					int nn = n + mw2;
-					texgz_tex_getClampedPixelF(src, j + n, i + m, &pixel);
-					f += mask[mw*mm + nn]*pixel;
+					texgz_tex_getClampedPixelF(src, j + n - cn,
+					                           i + m - cm, pixel);
+
+					for(c = 0; c < channels; ++c)
+					{
+						f[c] += mask[m*mw + n]*pixel[c];
+					}
 				}
 			}
 
-			texgz_tex_setPixelF(dst, j, i, &f);
+			// decimate and fill pixel
+			texgz_tex_setPixelF(dst, j/stride, i/vstride, f);
 		}
 	}
 }

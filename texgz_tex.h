@@ -107,6 +107,8 @@ texgz_tex_t* texgz_tex_channelF(texgz_tex_t* self,
 void         texgz_tex_convolveF(texgz_tex_t* src,
                                  texgz_tex_t* dst,
                                  int mw, int mh,
+                                 int stride,
+                                 int vstride,
                                  float* mask);
 int          texgz_tex_flipvertical(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self);

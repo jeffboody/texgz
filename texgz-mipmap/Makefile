@@ -1,18 +1,14 @@
 export CC_USE_MATH = 1
 
-TARGET  = texgz-outline
-CLASSES =
+TARGET  = texgz-mipmap
+CLASSES = pil_lanczos
 SOURCE  = $(TARGET).c $(CLASSES:%=%.c)
 OBJECTS = $(TARGET).o $(CLASSES:%=%.o)
 HFILES  = $(CLASSES:%=%.h)
 OPT     = -O2 -Wall
 CFLAGS  = $(OPT) -I.
-LDFLAGS = -Ltexgz -ltexgz -Llibcc -lcc -lz -lm
+LDFLAGS = -Ltexgz -ltexgz -Llibcc -lcc -ljpeg -lz -lm
 CCC     = gcc
-ifeq ($(TEXGZ_USE_JP2),1)
-	CFLAGS  += -DTEXGZ_USE_JP2
-	LDFLAGS += -lopenjp2
-endif
 
 all: $(TARGET)
 
