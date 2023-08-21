@@ -1932,6 +1932,56 @@ texgz_tex_lineSampleClippedF(texgz_tex_t* self, int id,
 	}
 }
 
+// https://en.wikipedia.org/wiki/Normal_distribution
+static float
+texgz_tex_gaussianPdf(float sigma, float mu, float x)
+{
+	float a = 1.0f/(sigma*sqrtf(2.0f*M_PI));
+	float b = (x - mu)/sigma;
+	float c = -0.5f*b*b;
+	return a*expf(c);
+}
+
+static int
+texgz_tex_gaussianCoef(float sigma, float mu,
+                       int size, float* coefficients)
+{
+	ASSERT(coefficients);
+
+	if(sigma < 0.0f)
+	{
+		LOGE("invalid sigma=%f", sigma);
+		return 0;
+	}
+
+	if((size < 0) || (size%2 == 0))
+	{
+		LOGE("invalid size=%i", size);
+		return 0;
+	}
+
+	float sum = 0.0f;
+	int   w   = size/2;
+
+	// compute coefficients
+	int i;
+	for(i = 0; i < size; ++i)
+	{
+		float x          = (float) (i - w);
+		coefficients[i]  = texgz_tex_gaussianPdf(sigma, mu, x);
+		sum             += coefficients[i];
+
+	}
+
+	// scale coefficients so sum is 1.0f
+	for(i = 0; i < size; ++i)
+	{
+		coefficients[i] = coefficients[i]/sum;
+	}
+
+	return 1;
+}
+
 /*
  * public
  */
@@ -2325,7 +2375,7 @@ texgz_tex_lanczos3(texgz_tex_t* self, int level)
 	int   size    = 2*n;
 	if(size >= TEXGZ_LANCZOS3_MAXSIZE)
 	{
-		LOGE("unsupported level=%i", level);
+		LOGE("invalid level=%i", level);
 		goto fail_size;
 	}
 
@@ -3396,13 +3446,267 @@ texgz_tex_convolveF(texgz_tex_t* src, texgz_tex_t* dst,
 	}
 }
 
+int texgz_tex_blur(texgz_tex_t* self, float sigma,
+                   float mu, int size)
+{
+	texgz_tex_t* tex;
+	tex = texgz_tex_blurcopy(self, sigma, mu, size);
+	if(tex == NULL)
+	{
+		return 0;
+	}
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t*
+texgz_tex_blurcopy(texgz_tex_t* self, float sigma,
+                   float mu, int size)
+{
+	ASSERT(self);
+
+	// blur is designed for 4-channel RGBA
+	if((self->type   != TEXGZ_UNSIGNED_BYTE) ||
+	   (self->format != TEXGZ_RGBA))
+	{
+		LOGE("invalid type=%i, format=%i",
+		     self->type, self->format);
+		return NULL;
+	}
+
+	const int max_size = 7;
+	if(size > max_size)
+	{
+		LOGE("invalid size=%i", size);
+		return NULL;
+	}
+
+	float mask[max_size];
+	if(texgz_tex_gaussianCoef(sigma, mu, size, mask) == 0)
+	{
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_convertFcopy(self, 0.0f, 1.0f,
+	                             TEXGZ_FLOAT, TEXGZ_RGBA);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	texgz_tex_t* conv;
+	conv = texgz_tex_new(tex->width, tex->width,
+	                     tex->stride, tex->vstride,
+	                     tex->type, tex->format,
+	                     NULL);
+	if(conv == NULL)
+	{
+		goto fail_conv;
+	}
+
+	texgz_tex_convolveF(tex, conv, size, 1, 1, 1, mask);
+	texgz_tex_convolveF(conv, tex, 1, size, 1, 1, mask);
+
+	if(texgz_tex_convertF(tex, 0.0f, 1.0f,
+	                      TEXGZ_UNSIGNED_BYTE,
+	                      TEXGZ_RGBA) == 0)
+	{
+		goto fail_convert;
+	}
+
+	texgz_tex_delete(&conv);
+
+	// success
+	return tex;
+
+	fail_convert:
+		texgz_tex_delete(&conv);
+	fail_conv:
+		texgz_tex_delete(&tex);
+	return NULL;
+}
+
+int texgz_tex_rotate90(texgz_tex_t* self)
+{
+	texgz_tex_t* tex;
+	tex = texgz_tex_rotate90copy(self);
+	if(tex == NULL)
+	{
+		return 0;
+	}
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t*
+texgz_tex_rotate90copy(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	if(self->width != self->height)
+	{
+		LOGE("invalid width=%i, height=%i",
+		     self->width, self->height);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    self->type, self->format, NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	int x;
+	int y;
+	int w = self->width;
+	unsigned char pixel[4];
+	for(y = 0; y < self->height; ++y)
+	{
+		for(x = 0; x < self->width; ++x)
+		{
+			texgz_tex_getPixel(self, x, y, pixel);
+			texgz_tex_setPixel(tex, (w - 1 - y), x, pixel);
+		}
+	}
+
+	return tex;
+}
+
+int texgz_tex_rotate180(texgz_tex_t* self)
+{
+	texgz_tex_t* tex;
+	tex = texgz_tex_rotate180copy(self);
+	if(tex == NULL)
+	{
+		return 0;
+	}
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t*
+texgz_tex_rotate180copy(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	if(self->width != self->height)
+	{
+		LOGE("invalid width=%i, height=%i",
+		     self->width, self->height);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    self->type, self->format, NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	int x;
+	int y;
+	int w = self->width;
+	unsigned char pixel[4];
+	for(y = 0; y < self->height; ++y)
+	{
+		for(x = 0; x < self->width; ++x)
+		{
+			texgz_tex_getPixel(self, x, y, pixel);
+			texgz_tex_setPixel(tex, (w - 1 - x), (w - 1 - y), pixel);
+		}
+	}
+
+	return tex;
+}
+
+int texgz_tex_rotate270(texgz_tex_t* self)
+{
+	texgz_tex_t* tex;
+	tex = texgz_tex_rotate270copy(self);
+	if(tex == NULL)
+	{
+		return 0;
+	}
+
+	// swap the data
+	texgz_tex_t tmp = *self;
+	*self = *tex;
+	*tex = tmp;
+
+	texgz_tex_delete(&tex);
+	return 1;
+}
+
+texgz_tex_t*
+texgz_tex_rotate270copy(texgz_tex_t* self)
+{
+	ASSERT(self);
+
+	if(self->width != self->height)
+	{
+		LOGE("invalid width=%i, height=%i",
+		     self->width, self->height);
+		return NULL;
+	}
+
+	texgz_tex_t* tex;
+	tex = texgz_tex_new(self->width, self->height,
+	                    self->stride, self->vstride,
+	                    self->type, self->format, NULL);
+	if(tex == NULL)
+	{
+		return NULL;
+	}
+
+	int x;
+	int y;
+	int w = self->width;
+	unsigned char pixel[4];
+	for(y = 0; y < self->height; ++y)
+	{
+		for(x = 0; x < self->width; ++x)
+		{
+			texgz_tex_getPixel(self, x, y, pixel);
+			texgz_tex_setPixel(tex, y, (w - 1 - x), pixel);
+		}
+	}
+
+	return tex;
+}
+
 int texgz_tex_flipvertical(texgz_tex_t* self)
 {
 	ASSERT(self);
 
 	texgz_tex_t* tex = texgz_tex_flipverticalcopy(self);
 	if(tex == NULL)
+	{
 		return 0;
+	}
 
 	// swap the data
 	texgz_tex_t tmp = *self;
@@ -3422,20 +3726,22 @@ texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self)
 	                    self->stride, self->vstride,
 	                    self->type, self->format, NULL);
 	if(tex == NULL)
+	{
 		return NULL;
+	}
 
-	// vertical flip
 	int y;
-	int bpp     = texgz_tex_bpp(self);
-	int stride  = self->stride;
-	int vstride = self->vstride;
-	for(y = 0; y < vstride; ++y)
+	int bpp    = texgz_tex_bpp(self);
+	int stride = self->stride;
+	int width  = self->width;
+	int height = self->height;
+	for(y = 0; y < height; ++y)
 	{
 		unsigned char* src;
 		unsigned char* dst;
 		src = &self->pixels[y*bpp*stride];
-		dst = &tex->pixels[(vstride - 1 - y)*bpp*stride];
-		memcpy(dst, src, bpp*stride);
+		dst = &tex->pixels[(height - 1 - y)*bpp*stride];
+		memcpy(dst, src, bpp*width);
 	}
 	return tex;
 }

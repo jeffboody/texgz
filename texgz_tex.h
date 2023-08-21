@@ -112,6 +112,18 @@ void         texgz_tex_convolveF(texgz_tex_t* src,
                                  int stride,
                                  int vstride,
                                  float* mask);
+int          texgz_tex_blur(texgz_tex_t* self,
+                            float sigma,
+                            float mu, int size);
+texgz_tex_t* texgz_tex_blurcopy(texgz_tex_t* self,
+                                float sigma,
+                                float mu, int size);
+int          texgz_tex_rotate90(texgz_tex_t* self);
+texgz_tex_t* texgz_tex_rotate90copy(texgz_tex_t* self);
+int          texgz_tex_rotate180(texgz_tex_t* self);
+texgz_tex_t* texgz_tex_rotate180copy(texgz_tex_t* self);
+int          texgz_tex_rotate270(texgz_tex_t* self);
+texgz_tex_t* texgz_tex_rotate270copy(texgz_tex_t* self);
 int          texgz_tex_flipvertical(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_flipverticalcopy(texgz_tex_t* self);
 int          texgz_tex_crop(texgz_tex_t* self, int top, int left, int bottom, int right);
