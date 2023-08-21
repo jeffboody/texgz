@@ -1,7 +1,7 @@
 export CC_USE_MATH = 1
 
 TARGET  = libtexgz.a
-CLASSES = texgz_tex texgz_jpeg texgz_png
+CLASSES = texgz_tex texgz_jpeg texgz_png pil_lanczos
 ifeq ($(TEXGZ_USE_JP2),1)
 	CLASSES += texgz_jp2
 endif

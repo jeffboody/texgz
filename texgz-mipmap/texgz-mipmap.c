@@ -28,7 +28,7 @@
 #include "libcc/math/cc_pow2n.h"
 #include "libcc/cc_log.h"
 #include "texgz/texgz_png.h"
-#include "pil_lanczos.h"
+#include "texgz/pil_lanczos.h"
 
 #define TEXGZ_MIPMAP_SIZE_MAX 257
 

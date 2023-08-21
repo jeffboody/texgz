@@ -29,10 +29,14 @@
 
 #define LOG_TAG "texgz"
 #include "../libcc/math/cc_float.h"
+#include "../libcc/math/cc_pow2n.h"
 #include "../libcc/cc_log.h"
 #include "../libcc/cc_memory.h"
 #include "../libcc/math/cc_float.h"
+#include "pil_lanczos.h"
 #include "texgz_tex.h"
+
+#define TEXGZ_LANCZOS3_MAXSIZE 257
 
 /*
  * private - optimizations
@@ -2264,6 +2268,115 @@ texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self)
 		{
 			texgz_tex_delete(&src);
 		}
+	return NULL;
+}
+
+texgz_tex_t*
+texgz_tex_lanczos3(texgz_tex_t* self, int level)
+{
+	ASSERT(self);
+
+	int src_width  = self->width;
+	int src_height = self->height;
+	int dst_width  = src_width/cc_pow2n(level);
+	int dst_height = src_height/cc_pow2n(level);
+
+	if((src_width%dst_width) || (src_height%dst_height))
+	{
+		LOGE("invalid width=%i:%i, height=%i:%i",
+		     src_width,  dst_width,
+		     src_height, dst_height);
+		return NULL;
+	}
+
+	texgz_tex_t* src;
+	src = texgz_tex_convertFcopy(self, 0.0f, 1.0f,
+	                             TEXGZ_FLOAT, TEXGZ_RGBA);
+	if(src == NULL)
+	{
+		return NULL;
+	}
+
+	texgz_tex_t* conv;
+	conv = texgz_tex_new(dst_width, src_height,
+	                     dst_width, src_height,
+	                     TEXGZ_FLOAT, TEXGZ_RGBA,
+	                     NULL);
+	if(conv == NULL)
+	{
+		goto fail_conv;
+	}
+
+	texgz_tex_t* dst;
+	dst = texgz_tex_new(dst_width, dst_height,
+	                    dst_width, dst_height,
+	                    TEXGZ_FLOAT, TEXGZ_RGBA,
+	                    NULL);
+	if(dst == NULL)
+	{
+		goto fail_dst;
+	}
+
+	// determine filter size
+	int   scale   = cc_pow2n(level);
+	float support = 3.0f;
+	float scalef  = (float) scale;
+	int   n       = (int) (scalef*support + 0.01f);
+	int   size    = 2*n;
+	if(size >= TEXGZ_LANCZOS3_MAXSIZE)
+	{
+		LOGE("unsupported level=%i", level);
+		goto fail_size;
+	}
+
+	// generate masks
+	// for example
+	// 1: 0.007,  0.030,
+	//   -0.068, -0.133,
+	//    0.270,  0.890,
+	// 2: 0.002,  0.016,  0.030,  0.020,
+	//   -0.031, -0.105, -0.147, -0.085,
+	//    0.121,  0.437,  0.764,  0.971,
+	float step = 1.0f/scalef;
+	float x    = support - step/2.0f;
+	float y;
+	int   i;
+	float mask[TEXGZ_LANCZOS3_MAXSIZE];
+	for(i = 0; i < n; ++i)
+	{
+		y = pil_lanczos3_filter(x)/scale;
+		mask[i]            = y;
+		mask[size - i - 1] = y;
+		x -= step;
+	}
+
+	// apply filter and decimate
+	texgz_tex_convolveF(src,  conv,
+	                    size, 1, scale, 1, mask);
+	texgz_tex_convolveF(conv, dst,
+	                    1, size, 1, scale, mask);
+
+	if(texgz_tex_convertF(dst, 0.0f, 1.0f,
+	                      TEXGZ_UNSIGNED_BYTE,
+	                      TEXGZ_RGBA) == 0)
+	{
+		goto fail_convert;
+	}
+
+	texgz_tex_delete(&conv);
+	texgz_tex_delete(&src);
+
+	// success
+	return dst;
+
+	// failure
+	fail_convert:
+	fail_size:
+		texgz_tex_delete(&dst);
+	fail_dst:
+		texgz_tex_delete(&conv);
+	fail_conv:
+		texgz_tex_delete(&src);
 	return NULL;
 }
 

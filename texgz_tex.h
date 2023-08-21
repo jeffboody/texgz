@@ -75,6 +75,8 @@ texgz_tex_t* texgz_tex_new(int width, int height,
 void         texgz_tex_delete(texgz_tex_t** _self);
 texgz_tex_t* texgz_tex_copy(texgz_tex_t* self);
 texgz_tex_t* texgz_tex_downscale(texgz_tex_t* self);
+texgz_tex_t* texgz_tex_lanczos3(texgz_tex_t* self,
+                                int level);
 texgz_tex_t* texgz_tex_resize(texgz_tex_t* self,
                               int width,
                               int height);

@@ -1,7 +1,7 @@
 export CC_USE_MATH = 1
 
 TARGET  = texgz-mipmap
-CLASSES = pil_lanczos
+CLASSES =
 SOURCE  = $(TARGET).c $(CLASSES:%=%.c)
 OBJECTS = $(TARGET).o $(CLASSES:%=%.o)
 HFILES  = $(CLASSES:%=%.h)
