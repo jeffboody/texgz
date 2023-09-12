@@ -22,6 +22,7 @@ add_library(texgz
             # Source
             ${SOURCE_PNG}
             ${SOURCE_JPEG}
+            pil_lanczos.c
             texgz_tex.c)
 
 # Linking
