@@ -1982,6 +1982,21 @@ texgz_tex_gaussianCoef(float sigma, float mu,
 	return 1;
 }
 
+static int texgz_clampi(int v, int min, int max)
+{
+	ASSERT(min < max);
+
+	if(v < min)
+	{
+		v = min;
+	}
+	else if(v > max)
+	{
+		v = max;
+	}
+	return v;
+}
+
 /*
  * public
  */
@@ -2455,15 +2470,13 @@ texgz_tex_t* texgz_tex_resize(texgz_tex_t* self,
 	int   j;
 	float u;
 	float v;
-	float w = (float) width + 1;
-	float h = (float) height + 1;
 	unsigned char pixel[4];
 	for(i = 0; i < height; ++i)
 	{
 		for(j = 0; j < width; ++j)
 		{
-			u = (j + 1)/w;
-			v = (i + 1)/h;
+			u = (((float) j) + 0.5f)/((float) width);
+			v = (((float) i) + 0.5f)/((float) height);
 			texgz_tex_sample(self, u, v, bpp, pixel);
 			texgz_tex_setPixel(copy, j, i, pixel);
 		}
@@ -4157,8 +4170,8 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 	// ASSERT(bpp == texgz_tex_bpp(self));
 
 	// "float indices"
-	float x = u*(self->width  - 1);
-	float y = v*(self->height - 1);
+	float x = u*self->width - 0.5f;
+	float y = v*self->height - 0.5f;
 
 	// determine indices to sample
 	int x0 = (int) x;
@@ -4166,11 +4179,18 @@ void texgz_tex_sample(texgz_tex_t* self, float u, float v,
 	int x1 = x0 + 1;
 	int y1 = y0 + 1;
 
-	// double check the indices
-	if((x1 >= self->width) || (y1 >= self->height))
+	// clamp indices
+	x0 = texgz_clampi(x0, 0, self->width - 1);
+	y0 = texgz_clampi(y0, 0, self->height - 1);
+	x1 = texgz_clampi(x1, 0, self->width - 1);
+	y1 = texgz_clampi(y1, 0, self->height - 1);
+	if(x0 == x1)
 	{
-		texgz_tex_getPixel(self, x0, y0, pixel);
-		return;
+		x = (float) x0;
+	}
+	if(y0 == y1)
+	{
+		y = (float) y0;
 	}
 
 	// compute interpolation coefficients
