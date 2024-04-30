@@ -2341,6 +2341,8 @@ texgz_tex_lanczos3(texgz_tex_t* self, int level)
 {
 	ASSERT(self);
 
+	// https://github.com/jeffboody/Lanczos
+
 	int src_width  = self->width;
 	int src_height = self->height;
 	int dst_width  = src_width/cc_pow2n(level);
@@ -2383,43 +2385,42 @@ texgz_tex_lanczos3(texgz_tex_t* self, int level)
 	}
 
 	// determine filter size
-	int   scale   = cc_pow2n(level);
-	float support = 3.0f;
-	float scalef  = (float) scale;
-	int   n       = (int) (scalef*support + 0.01f);
-	int   size    = 2*n;
+	int fs   = cc_pow2n(level);
+	int a    = 3;
+	int size = 2*fs*a;
 	if(size >= TEXGZ_LANCZOS3_MAXSIZE)
 	{
 		LOGE("invalid level=%i", level);
 		goto fail_size;
 	}
 
-	// generate masks
-	// for example
-	// 1: 0.007,  0.030,
-	//   -0.068, -0.133,
-	//    0.270,  0.890,
-	// 2: 0.002,  0.016,  0.030,  0.020,
-	//   -0.031, -0.105, -0.147, -0.085,
-	//    0.121,  0.437,  0.764,  0.971,
-	float step = 1.0f/scalef;
-	float x    = support - step/2.0f;
-	float y;
+	// generate masks and compute filter weight
+	float fsf  = (float) fs;
+	float step = (float) fs;
+	float x0   = 0.5f*step - 0.5f;
 	int   i;
+	int   m = 0;
+	float w = 0.0f;
 	float mask[TEXGZ_LANCZOS3_MAXSIZE];
-	for(i = 0; i < n; ++i)
+	for(i = -(fs*a) + 1; i < (fs*a); ++i)
 	{
-		y = pil_lanczos3_filter(x)/scale;
-		mask[i]            = y;
-		mask[size - i - 1] = y;
-		x -= step;
+		mask[m] = pil_lanczos3_filter((i - x0 + floorf(x0))/fsf);
+		w += mask[m];
+		m++;
+	}
+
+	// apply filter weight
+	for(m = 0; m < size; ++m)
+	{
+		mask[m] /= w;
 	}
 
 	// apply filter and decimate
+	int stride = fs;
 	texgz_tex_convolveF(src,  conv,
-	                    size, 1, scale, 1, mask);
+	                    size, 1, stride, 1, mask);
 	texgz_tex_convolveF(conv, dst,
-	                    1, size, 1, scale, mask);
+	                    1, size, 1, stride, mask);
 
 	if(texgz_tex_convertF(dst, 0.0f, 1.0f,
 	                      TEXGZ_UNSIGNED_BYTE,
