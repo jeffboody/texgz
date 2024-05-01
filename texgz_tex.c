@@ -2402,7 +2402,7 @@ texgz_tex_lanczos3(texgz_tex_t* self, int level)
 	int   m = 0;
 	float w = 0.0f;
 	float mask[TEXGZ_LANCZOS3_MAXSIZE];
-	for(i = -(fs*a) + 1; i < (fs*a); ++i)
+	for(i = -(fs*a) + 1; i <= (fs*a); ++i)
 	{
 		mask[m] = pil_lanczos3_filter((i - x0 + floorf(x0))/fsf);
 		w += mask[m];
