@@ -356,7 +356,7 @@ int texgz_jpeg_compress(texgz_tex_t* self,
 	}
 
 	unsigned char* data = NULL;
-	unsigned long  size = 0;
+	size_t         size = 0;
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	cinfo.err = jpeg_std_error(&jerr);
@@ -388,8 +388,8 @@ int texgz_jpeg_compress(texgz_tex_t* self,
 		texgz_tex_delete(&tex);
 	}
 
-	*_data = (void*)  data;
-	*_size = (size_t) size;
+	*_data = (void*) data;
+	*_size = size;
 
 	// sucess
 	return 1;
