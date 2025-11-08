@@ -146,7 +146,7 @@ void         texgz_tex_lineDraw(texgz_tex_t* self,
 void         texgz_tex_lineDrawF(texgz_tex_t* self,
                                  float x0, float y0,
                                  float x1, float y1,
-                                 float pixel);
+                                 float* pixel);
 void         texgz_tex_lineSampleF(texgz_tex_t* self,
                                    int id,
                                    float x0, float y0,

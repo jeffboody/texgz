@@ -1637,10 +1637,12 @@ static void
 texgz_tex_lineDrawClippedF(texgz_tex_t* self,
                            float x0, float y0,
                            float x1, float y1,
-                           float pixel)
+                           float* pixel)
 {
 	ASSERT(self);
+	ASSERT(pixel);
 	ASSERT(x0 <= x1);
+	ASSERT(self->type == TEXGZ_FLOAT);
 
 	int d;
 	int incr1, incr2;
@@ -1725,7 +1727,7 @@ texgz_tex_lineDrawClippedF(texgz_tex_t* self,
 	}
 
 	// fill first pixel
-	texgz_tex_setPixelF(self, px, py, &pixel);
+	texgz_tex_setPixelF(self, px, py, pixel);
 	while((*finalpos) - (*curpos))
 	{
 		if(d <= 0)
@@ -1740,7 +1742,7 @@ texgz_tex_lineDrawClippedF(texgz_tex_t* self,
 			px += px2_incr;
 			py += py2_incr;
 		}
-		texgz_tex_setPixelF(self, px, py, &pixel);
+		texgz_tex_setPixelF(self, px, py, pixel);
 	}
 }
 
@@ -3162,7 +3164,7 @@ texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self)
 	}
 
 	float src[4] = { 0 };
-	float dst;
+	float dst[4] = { 0 };
 	int   x;
 	int   y;
 	int   i;
@@ -3170,15 +3172,15 @@ texgz_tex_t* texgz_tex_grayscaleF(texgz_tex_t* self)
 	{
 		for(x = 0; x < self->width; ++x)
 		{
-			dst = 0.0f;
+			dst[0] = 0.0f;
 			texgz_tex_getPixelF(self, x, y, src);
 			for(i = 0; i < n; ++i)
 			{
-				dst += src[i];
+				dst[0] += src[i];
 			}
-			dst /= n;
+			dst[0] /= n;
 
-			texgz_tex_setPixelF(tex, x, y, &dst);
+			texgz_tex_setPixelF(tex, x, y, dst);
 		}
 	}
 
@@ -4120,11 +4122,10 @@ void texgz_tex_lineDraw(texgz_tex_t* self,
 void texgz_tex_lineDrawF(texgz_tex_t* self,
                          float x0, float y0,
                          float x1, float y1,
-                         float pixel)
+                         float* pixel)
 {
 	ASSERT(self);
-	ASSERT(self->type   == TEXGZ_FLOAT);
-	ASSERT(self->format == TEXGZ_LUMINANCE);
+	ASSERT(self->type == TEXGZ_FLOAT);
 
 	int direction = 1;
 	if(texgz_tex_lineClip(self, &direction, &x0, &y0, &x1, &y1))
